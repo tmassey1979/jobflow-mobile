@@ -7,7 +7,8 @@ var tests = new (string Name, Action Run)[]
     ("reauthentication is actionable and disconnectable", ReauthenticationState),
     ("not-configured providers cannot connect", NotConfiguredCannotConnect),
     ("sync timestamps require a connected provider", SyncRequiresConnected),
-    ("permission names are deduplicated case-insensitively", PermissionsAreDeduplicated)
+    ("permission names are deduplicated case-insensitively", PermissionsAreDeduplicated),
+    ("error messages are flattened and bounded", ErrorMessagesAreSanitized)
 };
 var failures = 0;
 foreach (var test in tests)
@@ -68,4 +69,12 @@ static void ExpectThrows<T>(Action action) where T : Exception
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
+}
+static void ErrorMessagesAreSanitized()
+{
+    var connection = new IntegrationConnection("github", "GitHub");
+    connection.MarkFailed("Network\\r\\nerror");
+    Assert(connection.ErrorMessage == "Network  error", "line breaks should be flattened");
+    connection.MarkFailed(new string('x', 300));
+    Assert(connection.ErrorMessage?.Length == 240, "error text should be capped at 240 characters");
 }
