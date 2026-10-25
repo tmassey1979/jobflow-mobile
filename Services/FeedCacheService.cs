@@ -13,11 +13,13 @@ public sealed class FeedCacheService
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly LocalDatabaseService _localDatabase;
     private readonly SQLiteAsyncConnection _database;
+    private readonly OfflineJobStore _offlineJobStore;
 
     public FeedCacheService()
     {
         _localDatabase = LocalDatabaseService.Shared;
         _database = _localDatabase.Connection;
+        _offlineJobStore = new OfflineJobStore(_localDatabase);
     }
 
     public async Task SaveLatestAsync(DailyFeed feed, CancellationToken cancellationToken = default)
@@ -34,6 +36,7 @@ public sealed class FeedCacheService
             CachedAtUtc = DateTime.UtcNow
         };
         await _database.InsertOrReplaceAsync(record);
+        await _offlineJobStore.ImportFeedAsync(feed, cancellationToken);
     }
 
     public async Task<DailyFeed?> LoadLatestAsync(CancellationToken cancellationToken = default)
