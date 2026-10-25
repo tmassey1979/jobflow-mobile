@@ -11,14 +11,13 @@ namespace JobFlow.Mobile.Services;
 public sealed class FeedCacheService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+    private readonly LocalDatabaseService _localDatabase;
     private readonly SQLiteAsyncConnection _database;
-    private readonly SemaphoreSlim _initializationLock = new(1, 1);
-    private bool _initialized;
 
     public FeedCacheService()
     {
-        var databasePath = Path.Combine(FileSystem.AppDataDirectory, "jobflow.db3");
-        _database = new SQLiteAsyncConnection(databasePath);
+        _localDatabase = LocalDatabaseService.Shared;
+        _database = _localDatabase.Connection;
     }
 
     public async Task SaveLatestAsync(DailyFeed feed, CancellationToken cancellationToken = default)
@@ -49,16 +48,4 @@ public sealed class FeedCacheService
         return feed;
     }
 
-    private async Task EnsureInitializedAsync()
-    {
-        if (_initialized) return;
-        await _initializationLock.WaitAsync();
-        try
-        {
-            if (_initialized) return;
-            await _database.CreateTableAsync<CachedFeedRecord>();
-            _initialized = true;
-        }
-        finally { _initializationLock.Release(); }
-    }
-}
+    private Task EnsureInitializedAsync() => _localDatabase.InitializeAsync();}
