@@ -11,7 +11,8 @@ var tests = new (string Name, Action Run)[]
     ("error messages are flattened and bounded", ErrorMessagesAreSanitized),
     ("application stages progress in the declared order", ApplicationStagesProgressInOrder),
     ("unknown application stage restarts at interested", UnknownApplicationStageRestarts),
-    ("only declared application stages are valid", ApplicationStageValidation)
+    ("only declared application stages are valid", ApplicationStageValidation),
+    ("SQLite native runtime is patched", SQLiteNativeRuntimeIsPatched)
 };
 var failures = 0;
 foreach (var test in tests)
@@ -111,4 +112,12 @@ static void ApplicationStageValidation()
     Assert(!ApplicationStages.IsValid("Apply now"), "unknown stage should be rejected");
     Assert(!ApplicationStages.IsValid(null), "missing stage should be rejected");
     Assert(!ApplicationStages.IsValid(" "), "blank stage should be rejected");
+}
+
+static void SQLiteNativeRuntimeIsPatched()
+{
+    using var database = new SQLite.SQLiteConnection(":memory:");
+    var versionText = database.ExecuteScalar<string>("select sqlite_version()");
+    Assert(Version.TryParse(versionText, out var version), $"SQLite returned an invalid version: {versionText}");
+    Assert(version >= new Version(3, 50, 2), $"SQLite {version} is older than patched version 3.50.2");
 }
