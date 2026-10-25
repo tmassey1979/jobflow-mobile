@@ -16,4 +16,10 @@ namespace JobFlow.Mobile;
         | ConfigChanges.Density)]
 public class MainActivity : MauiAppCompatActivity
 {
+    protected override void OnCreate(Bundle? savedInstanceState)
+    {
+        base.OnCreate(savedInstanceState);
+        // Soft keyboard should not permanently cover the token entry or search fields.
+        Window?.SetSoftInputMode(Android.Views.SoftInput.AdjustResize);
+    }
 }
