@@ -11,13 +11,12 @@
             <Label Text="Your job search, in your pocket." FontSize="15" TextColor="{StaticResource MutedInk}" />
             <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="14" BackgroundColor="White">
                 <VerticalStackLayout Spacing="10">
-                    <Label Text="Connect your private job feed" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
-                    <Label Text="Use a fine-grained GitHub token with read-only Contents access to Jobflow-data. It is stored securely on this device." FontSize="12" TextColor="{StaticResource MutedInk}" />
-                    <Entry x:Name="TokenEntry" Placeholder="GitHub read-only token" IsPassword="True" ClearButtonVisibility="WhileEditing" />
+                    <Label Text="Private job feed" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                    <Label x:Name="ConnectionSummaryLabel" Text="Sign in with GitHub on the Integrations tab, then choose your data repository." FontSize="12" TextColor="{StaticResource MutedInk}" />
                     <Button x:Name="LoadButton" Text="Load latest jobs" Clicked="OnLoadJobsClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
                 </VerticalStackLayout>
             </Border>
-            <Label x:Name="StatusLabel" Text="Connect to load the latest verified feed." FontSize="13" TextColor="{StaticResource MutedInk}" />
+            <Label x:Name="StatusLabel" Text="Sign in to load the latest verified feed." FontSize="13" TextColor="{StaticResource MutedInk}" />
             <Label x:Name="FeedDateLabel" FontSize="12" TextColor="{StaticResource MutedInk}" />
         </VerticalStackLayout>
 
@@ -31,7 +30,7 @@
                            HorizontalOptions="Center"
                            SemanticProperties.Description="Illustration of a quiet signal with no jobs yet" />
                     <Label Text="No jobs loaded yet" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" HorizontalTextAlignment="Center" />
-                    <Label Text="Load the latest feed from your private GitHub data repository." TextColor="{StaticResource MutedInk}" HorizontalTextAlignment="Center" />
+                    <Label Text="Sign in on Integrations, choose your data repo, then load the latest feed." TextColor="{StaticResource MutedInk}" HorizontalTextAlignment="Center" />
                 </VerticalStackLayout>
             </CollectionView.EmptyView>
             <CollectionView.ItemTemplate>

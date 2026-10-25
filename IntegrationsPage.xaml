@@ -7,21 +7,30 @@
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="16">
             <Label Text="Integrations" FontSize="30" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
-            <Label Text="Connect the services JobFlow uses. Connections are read-only unless a future feature clearly asks for separate permission." FontSize="14" TextColor="{StaticResource MutedInk}" />
+            <Label Text="Sign in with GitHub in the browser, then choose which private data repository JobFlow may read. No token paste." FontSize="14" TextColor="{StaticResource MutedInk}" />
+
             <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="16" BackgroundColor="White">
                 <VerticalStackLayout Spacing="10">
                     <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="10">
                         <Label Text="GitHub · Job data" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
                         <Label x:Name="GitHubStateLabel" Grid.Column="1" Text="Not connected" FontSize="12" TextColor="{StaticResource MutedInk}" VerticalOptions="Center" />
-                        <Label Grid.Row="1" Grid.ColumnSpan="2" Text="Temporary setup: fine-grained personal access token restricted to tmassey1979/Jobflow-data with Contents: Read-only. Native GitHub authorization is planned; no client secret will be embedded in the app." FontSize="12" TextColor="{StaticResource MutedInk}" />
+                        <Label Grid.Row="1" Grid.ColumnSpan="2" Text="Uses GitHub Device Login (browser). The app stores only the access token and the repository you select. No client secret is embedded." FontSize="12" TextColor="{StaticResource MutedInk}" />
                     </Grid>
-                    <Entry x:Name="GitHubTokenEntry" Placeholder="Paste read-only token" IsPassword="True" ClearButtonVisibility="WhileEditing" />
-                    <Button x:Name="ConnectGitHubButton" Text="Test and connect GitHub" Clicked="OnConnectGitHubClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
-                    <Button x:Name="DisconnectGitHubButton" Text="Disconnect GitHub" Clicked="OnDisconnectGitHubClicked" IsVisible="False" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="10" />
-                    <Label x:Name="GitHubDetailsLabel" Text="No connection test has run on this device." FontSize="12" TextColor="{StaticResource MutedInk}" />
-                    <Label Text="JobFlow only makes feed-read requests here; it does not inspect the token's configured permissions. Restrict the token to this repository and Contents: Read-only. No repository writes, applications, or outreach." FontSize="12" TextColor="{StaticResource MutedInk}" />
+
+                    <Label Text="OAuth App client ID (public)" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                    <Entry x:Name="ClientIdEntry" Placeholder="GitHub OAuth App client ID" ClearButtonVisibility="WhileEditing" />
+                    <Label Text="One-time: create an OAuth App at github.com/settings/developers, enable Device Flow, paste the client ID here." FontSize="11" TextColor="{StaticResource MutedInk}" />
+
+                    <Button x:Name="SignInGitHubButton" Text="Sign in with GitHub" Clicked="OnSignInGitHubClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
+                    <Button x:Name="ChooseRepoButton" Text="Choose data repository" Clicked="OnChooseRepoClicked" IsVisible="False" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
+                    <Button x:Name="DisconnectGitHubButton" Text="Sign out of GitHub" Clicked="OnDisconnectGitHubClicked" IsVisible="False" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="10" />
+
+                    <Label x:Name="DeviceCodeLabel" FontSize="22" FontAttributes="Bold" TextColor="{StaticResource Accent}" IsVisible="False" HorizontalTextAlignment="Center" />
+                    <Label x:Name="GitHubDetailsLabel" Text="Not signed in on this device." FontSize="12" TextColor="{StaticResource MutedInk}" />
+                    <Label Text="After sign-in, JobFlow only reads the repository you pick. It does not submit applications or write to GitHub." FontSize="12" TextColor="{StaticResource MutedInk}" />
                 </VerticalStackLayout>
             </Border>
+
             <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="16" BackgroundColor="White">
                 <VerticalStackLayout Spacing="8">
                     <Grid ColumnDefinitions="*,Auto">
@@ -31,7 +40,8 @@
                     <Label Text="Planned: Google official Android consent flow with calendar read-only access. JobFlow will never ask for your Google password." FontSize="12" TextColor="{StaticResource MutedInk}" />
                 </VerticalStackLayout>
             </Border>
-            <Label Text="Privacy note: credentials are stored with Android Secure Storage. Disconnecting GitHub removes its saved token from this device only." FontSize="12" TextColor="{StaticResource MutedInk}" />
+
+            <Label Text="Privacy: credentials stay in Android Secure Storage on this device. Signing out removes the GitHub session locally." FontSize="12" TextColor="{StaticResource MutedInk}" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>
