@@ -22,7 +22,7 @@ public sealed class GitHubDataService
 
         using var request = CreateRequest($"https://api.github.com/repos/{Owner}/{Repository}/contents/daily", token);
         using var response = await _httpClient.SendAsync(request, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
+        await EnsureSuccessAsync(response);
         var listingJson = await response.Content.ReadAsStringAsync(cancellationToken);
         var entries = JsonSerializer.Deserialize<List<GitHubContentEntry>>(listingJson, JsonOptions) ?? [];
 
@@ -77,9 +77,9 @@ public sealed class GitHubDataService
         return request;
     }
 
-    private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    private static Task EnsureSuccessAsync(HttpResponseMessage response)
     {
-        if (response.IsSuccessStatusCode) return;
+        if (response.IsSuccessStatusCode) return Task.CompletedTask;
         var message = response.StatusCode switch
         {
             System.Net.HttpStatusCode.Unauthorized => "GitHub rejected the token. Check that it is valid and has read-only Contents access.",
