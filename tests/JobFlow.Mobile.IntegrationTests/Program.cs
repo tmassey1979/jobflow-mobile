@@ -112,6 +112,7 @@ static void DatabaseMigrationPreservesLegacyData()
         "jobflow.db3");
 
     // Simulate a pre-migration installation: a cache table already exists but no migration ledger.
+    Directory.CreateDirectory(Path.GetDirectoryName(databasePath)!);
     var legacyConnection = new SQLiteAsyncConnection(databasePath);
     legacyConnection.CreateTableAsync<CachedFeedRecord>().GetAwaiter().GetResult();
     legacyConnection.InsertAsync(new CachedFeedRecord
