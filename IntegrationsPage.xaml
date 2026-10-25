@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="JobFlow.Mobile.IntegrationsPage"
+             Title="Integrations"
+             BackgroundColor="{StaticResource PageBackground}">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+            <Label Text="Integrations" FontSize="30" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+            <Label Text="Connect the services JobFlow uses. Connections are read-only unless a future feature clearly asks for separate permission." FontSize="14" TextColor="{StaticResource MutedInk}" />
+            <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="16" BackgroundColor="White">
+                <VerticalStackLayout Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="10">
+                        <Label Text="GitHub · Job data" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                        <Label x:Name="GitHubStateLabel" Grid.Column="1" Text="Not connected" FontSize="12" TextColor="{StaticResource MutedInk}" VerticalOptions="Center" />
+                        <Label Grid.Row="1" Grid.ColumnSpan="2" Text="Temporary setup: fine-grained personal access token restricted to tmassey1979/Jobflow-data with Contents: Read-only. Native GitHub authorization is planned; no client secret will be embedded in the app." FontSize="12" TextColor="{StaticResource MutedInk}" />
+                    </Grid>
+                    <Entry x:Name="GitHubTokenEntry" Placeholder="Paste read-only token" IsPassword="True" ClearButtonVisibility="WhileEditing" />
+                    <Button x:Name="ConnectGitHubButton" Text="Test and connect GitHub" Clicked="OnConnectGitHubClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
+                    <Button x:Name="DisconnectGitHubButton" Text="Disconnect GitHub" Clicked="OnDisconnectGitHubClicked" IsVisible="False" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="10" />
+                    <Label x:Name="GitHubDetailsLabel" Text="No connection test has run on this device." FontSize="12" TextColor="{StaticResource MutedInk}" />
+                    <Label Text="JobFlow only makes feed-read requests here; it does not inspect the token's configured permissions. Restrict the token to this repository and Contents: Read-only. No repository writes, applications, or outreach." FontSize="12" TextColor="{StaticResource MutedInk}" />
+                </VerticalStackLayout>
+            </Border>
+            <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="16" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Google Calendar" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                        <Label Grid.Column="1" Text="Not configured" FontSize="12" TextColor="{StaticResource MutedInk}" VerticalOptions="Center" />
+                    </Grid>
+                    <Label Text="Planned: Google official Android consent flow with calendar read-only access. JobFlow will never ask for your Google password." FontSize="12" TextColor="{StaticResource MutedInk}" />
+                </VerticalStackLayout>
+            </Border>
+            <Label Text="Privacy note: credentials are stored with Android Secure Storage. Disconnecting GitHub removes its saved token from this device only." FontSize="12" TextColor="{StaticResource MutedInk}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

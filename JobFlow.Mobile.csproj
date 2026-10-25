@@ -15,6 +15,10 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.110" />
+    <PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
   </ItemGroup>
   <ItemGroup>
     <MauiIcon
@@ -26,8 +30,5 @@
       Include="Resources\Splash\splash.svg"
       Color="#1A1A1A"
       BaseSize="128,128" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Remove="tests/**/*.cs" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,102 @@
+using JobFlow.Mobile.Models;
+
+var tests = new (string Name, Action Run)[]
+{
+    ("connect clears prior error and records only permission names", ConnectRecordsPermissions),
+    ("disconnect clears permissions sync time and errors", DisconnectClearsState),
+    ("reauthentication is actionable and disconnectable", ReauthenticationState),
+    ("not-configured providers cannot connect", NotConfiguredCannotConnect),
+    ("sync timestamps require a connected provider", SyncRequiresConnected),
+    ("permission names are deduplicated case-insensitively", PermissionsAreDeduplicated),
+    ("error messages are flattened and bounded", ErrorMessagesAreSanitized),
+    ("application stages progress in the declared order", ApplicationStagesProgressInOrder),
+    ("unknown application stage restarts at interested", UnknownApplicationStageRestarts)
+};
+var failures = 0;
+foreach (var test in tests)
+{
+    try { test.Run(); Console.WriteLine($"PASS {test.Name}"); }
+    catch (Exception ex) { failures++; Console.Error.WriteLine($"FAIL {test.Name}: {ex.Message}"); }
+}
+Console.WriteLine($"{tests.Length - failures}/{tests.Length} integration state tests passed.");
+return failures == 0 ? 0 : 1;
+
+static void ConnectRecordsPermissions()
+{
+    var connection = new IntegrationConnection("github", "GitHub");
+    connection.BeginConnect();
+    Assert(connection.Status == IntegrationStatus.Connecting, "status should be connecting");
+    connection.MarkFailed("Network unavailable");
+    connection.BeginConnect();
+    connection.MarkConnected(new[] { "Contents: read-only" }, DateTimeOffset.Parse("2026-10-24T12:00:00Z"));
+    Assert(connection.Status == IntegrationStatus.Connected, "status should be connected");
+    Assert(connection.ErrorMessage is null, "success should clear the prior error");
+    Assert(connection.GrantedPermissions.Single() == "Contents: read-only", "permission should be visible");
+    Assert(connection.LastSuccessfulSync.HasValue, "successful sync time should be retained");
+}
+static void DisconnectClearsState()
+{
+    var connection = new IntegrationConnection("github", "GitHub");
+    connection.MarkConnected(new[] { "Contents: read-only" }, DateTimeOffset.UtcNow);
+    connection.Disconnect();
+    Assert(connection.Status == IntegrationStatus.Disconnected, "status should be disconnected");
+    Assert(connection.GrantedPermissions.Count == 0, "permissions should be cleared");
+    Assert(connection.LastSuccessfulSync is null, "sync time should be cleared");
+    Assert(connection.ErrorMessage is null, "error should be cleared");
+}
+static void ReauthenticationState()
+{
+    var connection = new IntegrationConnection("google-calendar", "Google Calendar");
+    connection.MarkConnected(new[] { "calendar.readonly" });
+    connection.MarkNeedsReauthentication("Consent expired");
+    Assert(connection.Status == IntegrationStatus.NeedsReauthentication, "status should request reauthentication");
+    Assert(connection.CanDisconnect, "user should be able to disconnect");
+    Assert(connection.ErrorMessage == "Consent expired", "recovery hint should be retained");
+}
+static void NotConfiguredCannotConnect() =>
+    ExpectThrows<InvalidOperationException>(() => new IntegrationConnection("google-calendar", "Google Calendar", IntegrationStatus.NotConfigured).BeginConnect());
+static void SyncRequiresConnected() =>
+    ExpectThrows<InvalidOperationException>(() => new IntegrationConnection("github", "GitHub").MarkSyncSucceeded(DateTimeOffset.UtcNow));
+static void PermissionsAreDeduplicated()
+{
+    var connection = new IntegrationConnection("github", "GitHub");
+    connection.MarkConnected(new[] { "Contents: read-only", "contents: READ-ONLY", "", "Metadata: read-only" });
+    Assert(connection.GrantedPermissions.Count == 2, "permission names should be deduplicated and blanks omitted");
+}
+static void ExpectThrows<T>(Action action) where T : Exception
+{
+    try { action(); } catch (T) { return; }
+    throw new InvalidOperationException($"Expected {typeof(T).Name}.");
+}
+static void Assert(bool condition, string message)
+{
+    if (!condition) throw new InvalidOperationException(message);
+}
+static void ErrorMessagesAreSanitized()
+{
+    var connection = new IntegrationConnection("github", "GitHub");
+    connection.MarkFailed("Network\r\nerror");
+    Assert(connection.ErrorMessage == "Network  error", "line breaks should be flattened");
+    connection.MarkFailed(new string('x', 300));
+    Assert(connection.ErrorMessage?.Length == 240, "error text should be capped at 240 characters");
+}
+static void ApplicationStagesProgressInOrder()
+{
+    var expected = new[]
+    {
+        ApplicationStages.Interested, ApplicationStages.Preparing, ApplicationStages.ReadyToApply,
+        ApplicationStages.Applied, ApplicationStages.Interviewing, ApplicationStages.Offer,
+        ApplicationStages.Rejected, ApplicationStages.Interested
+    };
+    var current = expected[0];
+    for (var index = 1; index < expected.Length; index++)
+    {
+        current = ApplicationStages.Next(current);
+        Assert(current == expected[index], $"stage {index} should be {expected[index]} but was {current}");
+    }
+}
+static void UnknownApplicationStageRestarts()
+{
+    Assert(ApplicationStages.Next("unexpected") == ApplicationStages.Interested, "unknown stage should safely restart at Interested");
+    Assert(ApplicationStages.Next(null) == ApplicationStages.Interested, "missing stage should safely restart at Interested");
+}
