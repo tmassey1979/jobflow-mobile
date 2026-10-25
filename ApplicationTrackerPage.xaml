@@ -30,7 +30,7 @@
                                 <Button Grid.Column="0" Text="Advance stage" Clicked="OnAdvanceStageClicked" CommandParameter="{Binding JobId}" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="8" />
                                 <Button Grid.Column="1" Text="Remove" Clicked="OnRemoveClicked" CommandParameter="{Binding JobId}" BackgroundColor="#F1F3F7" TextColor="{StaticResource Ink}" CornerRadius="8" />
                             </Grid>
-                            <Button Text="Open application" Clicked="OnOpenApplicationClicked" CommandParameter="{Binding ApplicationUrl}" IsVisible="{Binding ApplicationUrl, Converter={StaticResource StringNotNullConverter}}" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
+                            <Button Text="Open application" Clicked="OnOpenApplicationClicked" CommandParameter="{Binding ApplicationUrl}" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
                         </VerticalStackLayout>
                     </Border>
                 </DataTemplate>
