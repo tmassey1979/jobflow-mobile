@@ -28,10 +28,9 @@
                             <Label Text="{Binding Status, StringFormat='Stage: {0}'}" FontSize="13" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
                             <Label Text="{Binding Notes, StringFormat='Notes: {0}'}" FontSize="12" TextColor="{StaticResource MutedInk}" />
                             <Button Text="Edit notes" Clicked="OnEditNotesClicked" CommandParameter="{Binding JobId}" BackgroundColor="#F1F3F7" TextColor="{StaticResource Ink}" CornerRadius="8" />
-                            <Button Text="Choose stage" Clicked="OnChooseStageClicked" CommandParameter="{Binding JobId}" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
                             <Label Text="{Binding UpdatedAtUtc, StringFormat='Updated: {0:g} UTC'}" FontSize="11" TextColor="{StaticResource MutedInk}" />
                             <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                                <Button Grid.Column="0" Text="Advance stage" Clicked="OnAdvanceStageClicked" CommandParameter="{Binding JobId}" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="8" />
+                                <Button Grid.Column="0" Text="Choose stage" Clicked="OnChooseStageClicked" CommandParameter="{Binding JobId}" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="8" />
                                 <Button Grid.Column="1" Text="Remove" Clicked="OnRemoveClicked" CommandParameter="{Binding JobId}" BackgroundColor="#F1F3F7" TextColor="{StaticResource Ink}" CornerRadius="8" />
                             </Grid>
                             <Button Text="Open application" Clicked="OnOpenApplicationClicked" CommandParameter="{Binding ApplicationUrl}" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
