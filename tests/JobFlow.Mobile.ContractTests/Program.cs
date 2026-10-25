@@ -10,22 +10,12 @@ var tests = new (string Name, Action Run)[]
     ("returns null when no dated feed file exists", HandlesNoDatedFeed),
     ("rejects malformed JSON", RejectsMalformedJson)
 };
-
 var failures = 0;
 foreach (var test in tests)
 {
-    try
-    {
-        test.Run();
-        Console.WriteLine($"PASS {test.Name}");
-    }
-    catch (Exception ex)
-    {
-        failures++;
-        Console.Error.WriteLine($"FAIL {test.Name}: {ex.Message}");
-    }
+    try { test.Run(); Console.WriteLine($"PASS {test.Name}"); }
+    catch (Exception ex) { failures++; Console.Error.WriteLine($"FAIL {test.Name}: {ex.Message}"); }
 }
-
 Console.WriteLine($"{tests.Length - failures}/{tests.Length} contract tests passed.");
 return failures == 0 ? 0 : 1;
 
@@ -37,31 +27,24 @@ static void ParsesValidFeed()
     Assert(feed.Jobs[0].Title == "Senior Software Engineer", "job title should be preserved");
     Assert(feed.Criteria?.MinimumAnnualCompensationUsd == 110000m, "criteria should be preserved");
 }
-
 static void RemovesDuplicateIds()
 {
-    var json = FeedJson().Replace(
-        "\"jobs\":[{",
-        "\"jobs\":[{")
-        .Replace(
-            "\"application_tracking_path\":\"applications/demo.json\"}]",
-            "\"application_tracking_path\":\"applications/demo.json\"},{\"job_id\":\"DEMO-1\",\"title\":\"Duplicate\",\"company\":\"Other\"}]");
+    var duplicateJob = """
+  {
+    "job_id": "DEMO-1",
+    "title": "Duplicate",
+    "company": "Other"
+  }
+""";
+    var json = FeedJson().Replace("  }]\n}", $"  }},\n{duplicateJob}\n  ]\n}");
     var feed = DailyFeedParser.Parse(json);
     Assert(feed.Jobs.Count == 1, "duplicate IDs should collapse to one job");
     Assert(feed.Jobs[0].Title == "Senior Software Engineer", "the first occurrence should win");
 }
-
-static void RejectsUnsupportedSchema()
-{
-    ExpectThrows<NotSupportedException>(() => DailyFeedParser.Parse(FeedJson().Replace("\"schema_version\":1", "\"schema_version\":2")));
-}
-
-static void RejectsInvalidJobs()
-{
-    var json = FeedJson().Replace("\"job_id\":\"demo-1\",", "\"job_id\":\"\",");
-    ExpectThrows<InvalidOperationException>(() => DailyFeedParser.Parse(json));
-}
-
+static void RejectsUnsupportedSchema() =>
+    ExpectThrows<NotSupportedException>(() => DailyFeedParser.Parse(FeedJson().Replace("\"schema_version\": 1", "\"schema_version\": 2")));
+static void RejectsInvalidJobs() =>
+    ExpectThrows<InvalidOperationException>(() => DailyFeedParser.Parse(FeedJson().Replace("\"job_id\": \"demo-1\"", "\"job_id\": \"\"")));
 static void SelectsLatestFeed()
 {
     var latest = DailyFeedParser.SelectLatestFeedFile(new[]
@@ -71,17 +54,10 @@ static void SelectsLatestFeed()
     });
     Assert(latest == "2026-10-24.json", "latest exact YYYY-MM-DD filename should be selected");
 }
-
-static void HandlesNoDatedFeed()
-{
-    Assert(DailyFeedParser.SelectLatestFeedFile(new[] { "README.md", "not-a-date.json" }) is null,
-        "non-dated files should be ignored");
-}
-
-static void RejectsMalformedJson()
-{
+static void HandlesNoDatedFeed() =>
+    Assert(DailyFeedParser.SelectLatestFeedFile(new[] { "README.md", "not-a-date.json" }) is null, "non-dated files should be ignored");
+static void RejectsMalformedJson() =>
     ExpectThrows<System.Text.Json.JsonException>(() => DailyFeedParser.Parse("{not json"));
-}
 
 static string FeedJson() => """
 {
@@ -107,14 +83,11 @@ static string FeedJson() => """
   }]
 }
 """;
-
 static void ExpectThrows<T>(Action action) where T : Exception
 {
-    try { action(); }
-    catch (T) { return; }
+    try { action(); } catch (T) { return; }
     throw new InvalidOperationException($"Expected {typeof(T).Name}.");
 }
-
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
