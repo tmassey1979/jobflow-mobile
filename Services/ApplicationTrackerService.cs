@@ -53,7 +53,7 @@ public sealed class ApplicationTrackerService
     {
         if (string.IsNullOrWhiteSpace(jobId))
             throw new ArgumentException("A job ID is required.", nameof(jobId));
-        if (!ApplicationStages.All.Contains(status, StringComparer.OrdinalIgnoreCase))
+        if (!ApplicationStages.IsValid(status))
             throw new ArgumentException("Choose a valid application stage.", nameof(status));
 
         await EnsureInitializedAsync();
