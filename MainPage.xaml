@@ -29,7 +29,7 @@
                            HeightRequest="133"
                            Aspect="AspectFit"
                            HorizontalOptions="Center"
-                           SemanticProperties.Description="No jobs illustration" />
+                           SemanticProperties.Description="Illustration of a quiet signal with no jobs yet" />
                     <Label Text="No jobs loaded yet" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" HorizontalTextAlignment="Center" />
                     <Label Text="Load the latest feed from your private GitHub data repository." TextColor="{StaticResource MutedInk}" HorizontalTextAlignment="Center" />
                 </VerticalStackLayout>
