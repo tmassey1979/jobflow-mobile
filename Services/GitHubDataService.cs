@@ -49,7 +49,7 @@ public sealed class GitHubDataService
         var escapedPath = string.Join("/", normalized.Split('/').Select(Uri.EscapeDataString));
         using var request = CreateRequest($"https://api.github.com/repos/{Owner}/{Repository}/contents/{escapedPath}", token);
         using var response = await _httpClient.SendAsync(request, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
+        await EnsureSuccessAsync(response);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         var entry = JsonSerializer.Deserialize<GitHubContentEntry>(json, JsonOptions)
             ?? throw new InvalidOperationException("GitHub returned an empty file response.");
