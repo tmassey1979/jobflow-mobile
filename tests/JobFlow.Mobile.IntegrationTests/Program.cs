@@ -14,7 +14,8 @@ var tests = new (string Name, Action Run)[]
     ("application stages progress in the declared order", ApplicationStagesProgressInOrder),
     ("unknown application stage restarts at interested", UnknownApplicationStageRestarts),
     ("database migration preserves legacy cache data and is idempotent", DatabaseMigrationPreservesLegacyData),
-    ("database refuses to downgrade a newer schema", NewerDatabaseSchemaIsRejected)
+    ("database refuses to downgrade a newer schema", NewerDatabaseSchemaIsRejected),
+    ("offline job imports deduplicate case-insensitively and survive feed omissions", OfflineJobImportsAreStable)
 };
 var failures = 0;
 foreach (var test in tests)
@@ -135,6 +136,9 @@ static void DatabaseMigrationPreservesLegacyData()
 
     var migrations = database.Connection.Table<DatabaseMigrationRecord>().ToListAsync().GetAwaiter().GetResult();
     Assert(migrations.Count(item => item.Version == 1) == 1, "repeated initialization must not duplicate migration records");
+    Assert(migrations.Count(item => item.Version == 2) == 1, "job-cache migration should be applied once");
+    Assert(database.Connection.Table<CachedJobRecord>().ToListAsync().GetAwaiter().GetResult() is not null,
+        "migration should create the cached jobs table");
     Assert(database.Connection.Table<ApplicationRecord>().ToListAsync().GetAwaiter().GetResult() is not null,
         "migration should create the application table");
 }
@@ -151,11 +155,62 @@ static void NewerDatabaseSchemaIsRejected()
     connection.CreateTableAsync<DatabaseMigrationRecord>().GetAwaiter().GetResult();
     connection.InsertAsync(new DatabaseMigrationRecord
     {
-        Version = 2,
+        Version = 3,
         AppliedAtUtc = DateTime.UtcNow,
         Description = "Simulated future schema"
     }).GetAwaiter().GetResult();
 
     var database = new LocalDatabaseService(databasePath);
     ExpectThrows<InvalidOperationException>(() => database.InitializeAsync().GetAwaiter().GetResult());
+}
+
+static void OfflineJobImportsAreStable()
+{
+    var databasePath = Path.Combine(Path.GetTempPath(), $"jobflow-offline-jobs-{Guid.NewGuid():N}", "jobflow.db3");
+    var localDatabase = new LocalDatabaseService(databasePath);
+    var store = new OfflineJobStore(localDatabase);
+    var firstFeed = new DailyFeed
+    {
+        SchemaVersion = 1,
+        GeneratedAt = "2026-10-25T10:00:00Z",
+        SourcePath = "daily/2026-10-25.json",
+        Jobs =
+        [
+            new JobFeedItem { JobId = "Job-ABC", Title = "Senior Engineer", Company = "Acme", ApplicationUrl = "https://jobs.example/apply" },
+            new JobFeedItem { JobId = "job-abc", Title = "Duplicate", Company = "Duplicate Co" }
+        ]
+    };
+
+    var imported = store.ImportFeedAsync(firstFeed).GetAwaiter().GetResult();
+    Assert(imported == 1, "case-insensitive duplicate job IDs should import only once");
+    var saved = store.FindAsync("JOB-ABC").GetAwaiter().GetResult();
+    Assert(saved is not null && saved.Title == "Senior Engineer", "job should be retrievable offline by case-insensitive ID");
+    Assert(saved?.ApplicationUrl == "https://jobs.example/apply", "safe HTTPS application URL should be retained");
+
+    var tracker = new SQLiteAsyncConnection(databasePath);
+    tracker.InsertAsync(new ApplicationRecord
+    {
+        JobId = "Job-ABC",
+        Title = "Senior Engineer",
+        Company = "Acme",
+        Status = ApplicationStages.Preparing,
+        Notes = "My private note",
+        CreatedAtUtc = DateTime.UtcNow,
+        UpdatedAtUtc = DateTime.UtcNow
+    }).GetAwaiter().GetResult();
+
+    var secondFeed = new DailyFeed
+    {
+        SchemaVersion = 1,
+        GeneratedAt = "2026-10-26T10:00:00Z",
+        SourcePath = "daily/2026-10-26.json",
+        Jobs = [new JobFeedItem { JobId = "job-xyz", Title = "Staff Engineer", Company = "Beta" }]
+    };
+    store.ImportFeedAsync(secondFeed).GetAwaiter().GetResult();
+
+    var all = store.GetAllAsync().GetAwaiter().GetResult();
+    Assert(all.Count == 2, "a later feed omission must not delete previously cached jobs");
+    var application = tracker.FindAsync<ApplicationRecord>("Job-ABC").GetAwaiter().GetResult();
+    Assert(application?.Status == ApplicationStages.Preparing, "job imports must not overwrite application progress");
+    Assert(application?.Notes == "My private note", "job imports must not overwrite user notes");
 }
