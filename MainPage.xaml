@@ -23,7 +23,13 @@
 
         <CollectionView x:Name="JobsCollection" Grid.Row="1" SelectionMode="None">
             <CollectionView.EmptyView>
-                <VerticalStackLayout Padding="24" Spacing="8" HorizontalOptions="Center" VerticalOptions="Center">
+                <VerticalStackLayout Padding="24" Spacing="12" HorizontalOptions="Center" VerticalOptions="Center">
+                    <Image Source="empty_jobs.png"
+                           WidthRequest="200"
+                           HeightRequest="133"
+                           Aspect="AspectFit"
+                           HorizontalOptions="Center"
+                           SemanticProperties.Description="Illustration of a quiet signal with no jobs yet" />
                     <Label Text="No jobs loaded yet" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" HorizontalTextAlignment="Center" />
                     <Label Text="Load the latest feed from your private GitHub data repository." TextColor="{StaticResource MutedInk}" HorizontalTextAlignment="Center" />
                 </VerticalStackLayout>

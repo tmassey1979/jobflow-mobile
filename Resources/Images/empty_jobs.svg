@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" fill="none">
+  <!-- Empty-state illustration: quiet signal / no jobs yet -->
+  <rect x="40" y="36" width="160" height="100" rx="16" fill="#E8EEF9"/>
+  <g transform="translate(120 86)" opacity="0.9">
+    <path
+      d="M -28 -8 L 0 -34 L 28 -8 L 15 -8 L 0 -21 L -15 -8 Z"
+      fill="#2563EB" opacity="0.35"/>
+    <path
+      d="M -28 14 L 0 -12 L 28 14 L 15 14 L 0 1 L -15 14 Z"
+      fill="#2563EB" opacity="0.55"/>
+  </g>
+  <circle cx="72" cy="52" r="4" fill="#94A3B8"/>
+  <circle cx="168" cy="120" r="3" fill="#94A3B8"/>
+</svg>

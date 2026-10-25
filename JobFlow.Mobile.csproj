@@ -30,5 +30,6 @@
       Include="Resources\Splash\splash.svg"
       Color="#1A1A1A"
       BaseSize="128,128" />
+    <MauiImage Include="Resources\Images\empty_jobs.svg" BaseSize="240,160" />
   </ItemGroup>
 </Project>
