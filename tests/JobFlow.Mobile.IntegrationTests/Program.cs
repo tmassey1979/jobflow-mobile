@@ -15,7 +15,8 @@ var tests = new (string Name, Action Run)[]
     ("unknown application stage restarts at interested", UnknownApplicationStageRestarts),
     ("database migration preserves legacy cache data and is idempotent", DatabaseMigrationPreservesLegacyData),
     ("database refuses to downgrade a newer schema", NewerDatabaseSchemaIsRejected),
-    ("offline job imports deduplicate case-insensitively and survive feed omissions", OfflineJobImportsAreStable)
+    ("offline job imports deduplicate case-insensitively and survive feed omissions", OfflineJobImportsAreStable),
+    ("saving validated feed makes jobs available offline", FeedSavePersistsOfflineJobs)
 };
 var failures = 0;
 foreach (var test in tests)
@@ -213,4 +214,28 @@ static void OfflineJobImportsAreStable()
     var application = tracker.FindAsync<ApplicationRecord>("Job-ABC").GetAwaiter().GetResult();
     Assert(application?.Status == ApplicationStages.Preparing, "job imports must not overwrite application progress");
     Assert(application?.Notes == "My private note", "job imports must not overwrite user notes");
+}
+
+static void FeedSavePersistsOfflineJobs()
+{
+    var databasePath = Path.Combine(Path.GetTempPath(), $"jobflow-feed-cache-{Guid.NewGuid():N}", "jobflow.db3");
+    var database = new LocalDatabaseService(databasePath);
+    var feedCache = new FeedCacheService(database);
+    var feed = new DailyFeed
+    {
+        SchemaVersion = 1,
+        GeneratedAt = "2026-10-25T12:00:00Z",
+        SourcePath = "daily/2026-10-25.json",
+        Jobs = [new JobFeedItem { JobId = "job-feed-1", Title = "AI Engineer", Company = "Example Inc" }]
+    };
+
+    feedCache.SaveLatestAsync(feed).GetAwaiter().GetResult();
+    var loadedFeed = feedCache.LoadLatestAsync().GetAwaiter().GetResult();
+    var cachedJobs = new OfflineJobStore(database).GetAllAsync().GetAwaiter().GetResult();
+
+    Assert(loadedFeed?.Jobs.Count == 1, "the validated feed should remain loadable from the local cache");
+    Assert(cachedJobs.Count == 1 && cachedJobs[0].JobId == "job-feed-1",
+        "saving a feed should persist its jobs to the offline job store");
+    Assert(cachedJobs[0].FeedSourcePath == "daily/2026-10-25.json",
+        "cached jobs should retain their source feed path");
 }
