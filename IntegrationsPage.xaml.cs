@@ -51,7 +51,7 @@ public partial class IntegrationsPage : ContentPage
 
         if (string.IsNullOrWhiteSpace(token))
         {
-            await DisplayAlert("GitHub token needed",
+            await DisplayAlertAsync("GitHub token needed",
                 "Create a fine-grained token limited to tmassey1979/Jobflow-data with Contents: Read-only, then paste it here. Never paste it into chat, an issue, or a commit.",
                 "OK");
             return;
@@ -71,12 +71,12 @@ public partial class IntegrationsPage : ContentPage
             GitHubDetailsLabel.Text = $"Connection verified. Found {feed.Jobs.Count} jobs in the latest dated feed ({feed.GeneratedAt ?? "generation date not supplied"}). Last successful test: {DateTimeOffset.Now:g}.";
             DisconnectGitHubButton.IsVisible = true;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             _gitHubConnection.MarkFailed("Connection failed. Check token access, repository, feed, or network.");
             GitHubStateLabel.Text = "Connection failed";
             GitHubDetailsLabel.Text = _gitHubConnection.ErrorMessage ?? "Connection failed. Try again.";
-            await DisplayAlert("Couldn't connect to GitHub", ex.Message, "OK");
+            await DisplayAlertAsync("Couldn't connect to GitHub", "Access could not be verified. Check the token permissions, repository selection, network, and feed structure. Technical details are hidden to avoid exposing sensitive response data.", "OK");
         }
         finally
         {
@@ -86,7 +86,7 @@ public partial class IntegrationsPage : ContentPage
 
     private async void OnDisconnectGitHubClicked(object sender, EventArgs e)
     {
-        var confirm = await DisplayAlert(
+        var confirm = await DisplayAlertAsync(
             "Disconnect GitHub?",
             "This removes the saved GitHub token from this device. It does not delete your repository or any job data.",
             "Disconnect",
@@ -104,7 +104,7 @@ public partial class IntegrationsPage : ContentPage
         }
         catch
         {
-            await DisplayAlert("Couldn't disconnect", "Android Secure Storage could not remove the saved token. Check device security settings and try again.", "OK");
+            await DisplayAlertAsync("Couldn't disconnect", "Android Secure Storage could not remove the saved token. Check device security settings and try again.", "OK");
         }
     }
 }
