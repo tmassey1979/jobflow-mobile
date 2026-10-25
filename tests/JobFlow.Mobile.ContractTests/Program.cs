@@ -42,8 +42,7 @@ static void RemovesDuplicateIds()
     "company": "Other"
   }
 """;
-    var json = FeedJson().Replace("  }]
-}", $"  }},
+    var json = FeedJson().Replace("  }]\n}", $"  }},
 {duplicateJob}
   ]
 }}");
