@@ -4,10 +4,11 @@
              x:Class="JobFlow.Mobile.App">
     <Application.Resources>
         <ResourceDictionary>
+            <!-- Signal Mark palette (issue #31): charcoal ink, electric blue accent -->
             <Color x:Key="PageBackground">#F5F7FB</Color>
-            <Color x:Key="Ink">#182230</Color>
-            <Color x:Key="MutedInk">#5C6878</Color>
-            <Color x:Key="Accent">#2359C4</Color>
+            <Color x:Key="Ink">#1A1A1A</Color>
+            <Color x:Key="MutedInk">#64748B</Color>
+            <Color x:Key="Accent">#2563EB</Color>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
