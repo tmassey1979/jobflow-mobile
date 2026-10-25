@@ -6,7 +6,14 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="../../Models/IntegrationConnection.cs" Link="Models/IntegrationConnection.cs" />
     <Compile Include="../../Models/ApplicationStages.cs" Link="Models/ApplicationStages.cs" />
+    <Compile Include="../../Models/ApplicationRecord.cs" Link="Models/ApplicationRecord.cs" />
+    <Compile Include="../../Models/CachedFeedRecord.cs" Link="Models/CachedFeedRecord.cs" />
+    <Compile Include="../../Models/DatabaseMigrationRecord.cs" Link="Models/DatabaseMigrationRecord.cs" />
+    <Compile Include="../../Services/LocalDatabaseService.cs" Link="Services/LocalDatabaseService.cs" />
   </ItemGroup>
 </Project>
