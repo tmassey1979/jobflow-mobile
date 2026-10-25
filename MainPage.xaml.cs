@@ -7,11 +7,13 @@ public partial class MainPage : ContentPage
 {
     private const string TokenStorageKey = "jobflow.github.readonly.token";
     private readonly GitHubDataService _dataService = new();
+    private readonly FeedCacheService _cacheService = new();
 
     public MainPage()
     {
         InitializeComponent();
         _ = RestoreSavedTokenAsync();
+        _ = LoadCachedFeedAsync();
     }
 
     private async Task RestoreSavedTokenAsync()
@@ -26,12 +28,35 @@ public partial class MainPage : ContentPage
         }
     }
 
+    private async Task LoadCachedFeedAsync()
+    {
+        try
+        {
+            var cached = await _cacheService.LoadLatestAsync();
+            if (cached is null) return;
+
+            JobsCollection.ItemsSource = cached.Jobs;
+            FeedDateLabel.Text = $"Feed generated: {cached.GeneratedAt ?? "date not supplied"}";
+            StatusLabel.Text = $"Showing {cached.Jobs.Count} cached jobs from {cached.SourcePath ?? "the last successful sync"}. Connect to refresh.";
+        }
+        catch
+        {
+            // A broken or unavailable cache must not prevent online use.
+        }
+    }
+
     private async void OnLoadJobsClicked(object sender, EventArgs e)
     {
         var token = TokenEntry.Text?.Trim();
         if (string.IsNullOrWhiteSpace(token))
         {
-            await DisplayAlertAsync("GitHub token needed", "Enter a fine-grained token with read-only Contents access to tmassey1979/Jobflow-data.", "OK");
+            try { token = await SecureStorage.Default.GetAsync(TokenStorageKey); }
+            catch { /* A clear prompt is shown below if secure storage is unavailable. */ }
+        }
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            await DisplayAlertAsync("GitHub token needed", "Enter a fine-grained token with read-only Contents access to tmassey1979/Jobflow-data. You can also connect it on the Integrations tab.", "OK");
             return;
         }
 
@@ -39,7 +64,7 @@ public partial class MainPage : ContentPage
         StatusLabel.Text = "Connecting to GitHub…";
         try
         {
-            // Validate access and feed structure before persisting credentials.
+            // A successful validated response is displayed immediately; cache failure never loses the online result.
             var feed = await _dataService.LoadLatestFeedAsync(token);
             JobsCollection.ItemsSource = feed.Jobs;
             FeedDateLabel.Text = $"Feed generated: {feed.GeneratedAt ?? "date not supplied"}";
@@ -47,23 +72,44 @@ public partial class MainPage : ContentPage
 
             try
             {
+                await _cacheService.SaveLatestAsync(feed);
+            }
+            catch
+            {
+                StatusLabel.Text += " This refresh is available now, but the local cache could not be updated.";
+            }
+
+            try
+            {
                 await SecureStorage.Default.SetAsync(TokenStorageKey, token);
             }
             catch
             {
-                StatusLabel.Text += " This session works, but Android Secure Storage could not save the token.";
+                StatusLabel.Text += " Android Secure Storage could not save the token.";
             }
             TokenEntry.Text = string.Empty;
         }
         catch (Exception)
         {
-            StatusLabel.Text = "Could not load the feed.";
-            await DisplayAlertAsync("JobFlow couldn't connect", "Access could not be verified. Check the token permissions, repository, network, and feed structure. Technical details are hidden to avoid exposing sensitive response data.", "OK");
+            var cached = await TryLoadCachedFeedAsync();
+            if (cached is not null)
+            {
+                JobsCollection.ItemsSource = cached.Jobs;
+                FeedDateLabel.Text = $"Feed generated: {cached.GeneratedAt ?? "date not supplied"}";
+                StatusLabel.Text = $"Offline: showing {cached.Jobs.Count} cached jobs. GitHub refresh failed.";
+            }
+            await DisplayAlertAsync("JobFlow couldn't refresh", "GitHub access or the feed could not be verified. If a saved feed exists, it remains available offline. Check the token, repository, network, and feed structure.", "OK");
         }
         finally
         {
             LoadButton.IsEnabled = true;
         }
+    }
+
+    private async Task<DailyFeed?> TryLoadCachedFeedAsync()
+    {
+        try { return await _cacheService.LoadLatestAsync(); }
+        catch { return null; }
     }
 
     private async void OnOpenApplicationClicked(object sender, EventArgs e)
