@@ -119,10 +119,7 @@ public partial class MainPage : ContentPage
         try
         {
             var record = await _applicationTracker.TrackAsync(job);
-            var message = record.CreatedAtUtc == record.UpdatedAtUtc
-                ? "Added to your local application tracker at Interested."
-                : $"Already tracked at stage: {record.Status}.";
-            await DisplayAlertAsync("Application tracker", message, "OK");
+            await DisplayAlertAsync("Application tracker", $"Saved locally. Current stage: {record.Status}.", "OK");
         }
         catch
         {
