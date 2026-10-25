@@ -19,6 +19,10 @@ public static class ApplicationStages
         Interested, Preparing, ReadyToApply, Applied, Interviewing, Offer, Rejected
     ];
 
+    public static bool IsValid(string? status) =>
+        !string.IsNullOrWhiteSpace(status)
+        && All.Contains(status, StringComparer.OrdinalIgnoreCase);
+
     public static string Next(string? current)
     {
         var index = All.ToList().FindIndex(value => string.Equals(value, current, StringComparison.OrdinalIgnoreCase));

@@ -10,12 +10,13 @@
             <Label Text="Application tracker" FontSize="28" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
             <Label Text="Track progress privately on this device. Nothing is submitted or sent for you." FontSize="13" TextColor="{StaticResource MutedInk}" />
             <Label x:Name="SummaryLabel" Text="No applications tracked yet." FontSize="13" FontAttributes="Bold" TextColor="{StaticResource Accent}" />
+            <SearchBar x:Name="SearchEntry" Placeholder="Search tracked jobs or companies" TextChanged="OnSearchTextChanged" BackgroundColor="White" />
         </VerticalStackLayout>
         <CollectionView x:Name="ApplicationsCollection" Grid.Row="1" SelectionMode="None">
             <CollectionView.EmptyView>
                 <VerticalStackLayout Padding="24" Spacing="8" HorizontalOptions="Center" VerticalOptions="Center">
-                    <Label Text="Your tracker starts here" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" HorizontalTextAlignment="Center" />
-                    <Label Text="Use Track application on any job card to add it to your pipeline." TextColor="{StaticResource MutedInk}" HorizontalTextAlignment="Center" />
+                    <Label x:Name="EmptyTitleLabel" Text="Your tracker starts here" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" HorizontalTextAlignment="Center" />
+                    <Label x:Name="EmptyDescriptionLabel" Text="Use Track application on any job card to add it to your pipeline." TextColor="{StaticResource MutedInk}" HorizontalTextAlignment="Center" />
                 </VerticalStackLayout>
             </CollectionView.EmptyView>
             <CollectionView.ItemTemplate>
@@ -25,9 +26,13 @@
                             <Label Text="{Binding Title}" FontSize="17" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
                             <Label Text="{Binding Company}" FontSize="14" TextColor="{StaticResource Accent}" />
                             <Label Text="{Binding Status, StringFormat='Stage: {0}'}" FontSize="13" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                            <Label Text="{Binding Notes, StringFormat='Notes: {0}'}" FontSize="12" TextColor="{StaticResource MutedInk}" />
+                            <Label Text="{Binding FollowUpDisplay}" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource Accent}" />
+                            <Button Text="Set follow-up date" Clicked="OnFollowUpClicked" CommandParameter="{Binding JobId}" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
+                            <Button Text="Edit notes" Clicked="OnEditNotesClicked" CommandParameter="{Binding JobId}" BackgroundColor="#F1F3F7" TextColor="{StaticResource Ink}" CornerRadius="8" />
                             <Label Text="{Binding UpdatedAtUtc, StringFormat='Updated: {0:g} UTC'}" FontSize="11" TextColor="{StaticResource MutedInk}" />
                             <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                                <Button Grid.Column="0" Text="Advance stage" Clicked="OnAdvanceStageClicked" CommandParameter="{Binding JobId}" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="8" />
+                                <Button Grid.Column="0" Text="Choose stage" Clicked="OnChooseStageClicked" CommandParameter="{Binding JobId}" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="8" />
                                 <Button Grid.Column="1" Text="Remove" Clicked="OnRemoveClicked" CommandParameter="{Binding JobId}" BackgroundColor="#F1F3F7" TextColor="{StaticResource Ink}" CornerRadius="8" />
                             </Grid>
                             <Button Text="Open application" Clicked="OnOpenApplicationClicked" CommandParameter="{Binding ApplicationUrl}" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />

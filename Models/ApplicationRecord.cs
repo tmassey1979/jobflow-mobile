@@ -24,4 +24,13 @@ public sealed class ApplicationRecord
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    // Joined from application_follow_ups at runtime; deliberately not stored in applications.
+    [Ignore]
+    public DateTime? FollowUpAtUtc { get; set; }
+
+    [Ignore]
+    public string FollowUpDisplay => FollowUpAtUtc is DateTime due
+        ? $"Follow-up: {due.ToLocalTime():d}"
+        : "No follow-up date set";
 }
