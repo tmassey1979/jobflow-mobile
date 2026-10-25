@@ -35,6 +35,8 @@ public static class DailyFeedParser
 
         if (!root.TryGetProperty("jobs", out var jobsElement) || jobsElement.ValueKind != JsonValueKind.Array)
             throw new InvalidOperationException("The daily feed must contain a jobs array.");
+        if (jobsElement.EnumerateArray().Any(item => item.ValueKind != JsonValueKind.Object))
+            throw new InvalidOperationException("Every item in the daily feed jobs array must be a JSON object.");
 
         var feed = JsonSerializer.Deserialize<DailyFeed>(json, JsonOptions)
             ?? throw new InvalidOperationException("The daily feed could not be parsed.");
