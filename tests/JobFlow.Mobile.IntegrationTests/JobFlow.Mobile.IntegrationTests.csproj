@@ -12,6 +12,7 @@
     <Compile Include="../../Models/IntegrationConnection.cs" Link="Models/IntegrationConnection.cs" />
     <Compile Include="../../Models/ApplicationStages.cs" Link="Models/ApplicationStages.cs" />
     <Compile Include="../../Models/ApplicationRecord.cs" Link="Models/ApplicationRecord.cs" />
+    <Compile Include="../../Models/ApplicationFollowUpRecord.cs" Link="Models/ApplicationFollowUpRecord.cs" />
     <Compile Include="../../Models/CachedFeedRecord.cs" Link="Models/CachedFeedRecord.cs" />
     <Compile Include="../../Models/CachedJobRecord.cs" Link="Models/CachedJobRecord.cs" />
     <Compile Include="../../Models/DailyFeed.cs" Link="Models/DailyFeed.cs" />
