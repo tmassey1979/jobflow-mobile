@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" fill="none">
+  <!--
+    JobFlow Signal Mark — adaptive-icon foreground
+    Safe zone: keep critical geometry inside the inner ~66% (approx 18–90).
+    Color: electric blue #2563EB on transparent background.
+  -->
+  <g transform="translate(54 54)">
+    <!-- Upper chevron stroke -->
+    <path
+      d="M -22 -6 L 0 -26 L 22 -6 L 12 -6 L 0 -16 L -12 -6 Z"
+      fill="#2563EB"/>
+    <!-- Lower chevron stroke -->
+    <path
+      d="M -22 10 L 0 -10 L 22 10 L 12 10 L 0 0 L -12 10 Z"
+      fill="#2563EB"/>
+  </g>
+</svg>
