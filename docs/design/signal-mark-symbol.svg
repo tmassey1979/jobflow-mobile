@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <!-- JobFlow Signal Mark — standalone symbol (transparent background) -->
+  <g transform="translate(64 64)">
+    <path
+      d="M -28 -8 L 0 -34 L 28 -8 L 15 -8 L 0 -21 L -15 -8 Z"
+      fill="#2563EB"/>
+    <path
+      d="M -28 14 L 0 -12 L 28 14 L 15 14 L 0 1 L -15 14 Z"
+      fill="#2563EB"/>
+  </g>
+</svg>
