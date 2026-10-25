@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using JobFlow.Mobile.Models;
 
 namespace JobFlow.Mobile.Services;
@@ -36,12 +37,7 @@ public sealed class GitHubDataService
         if (latest is null)
             throw new InvalidOperationException("No dated JSON feeds were found in the repository's daily folder.");
 
-        using var feedRequest = CreateRequest(latest.DownloadUrl
-            ?? $"https://api.github.com/repos/{Owner}/{Repository}/contents/daily/{Uri.EscapeDataString(latest.Name)}", token);
-        using var feedResponse = await _httpClient.SendAsync(feedRequest, cancellationToken);
-        await EnsureSuccessAsync(feedResponse, cancellationToken);
-        var feedJson = await feedResponse.Content.ReadAsStringAsync(cancellationToken);
-
+        var feedJson = await ReadTextFileAsync($"daily/{latest.Name}", token, cancellationToken);
         var feed = JsonSerializer.Deserialize<DailyFeed>(feedJson, JsonOptions);
         if (feed is null)
             throw new InvalidOperationException($"The feed {latest.Name} was empty or invalid.");
@@ -71,16 +67,7 @@ public sealed class GitHubDataService
             ?? throw new InvalidOperationException("GitHub returned an empty file response.");
 
         if (!string.Equals(entry.Encoding, "base64", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(entry.Content))
-        {
-            if (!string.IsNullOrWhiteSpace(entry.DownloadUrl))
-            {
-                using var downloadRequest = CreateRequest(entry.DownloadUrl, token);
-                using var downloadResponse = await _httpClient.SendAsync(downloadRequest, cancellationToken);
-                await EnsureSuccessAsync(downloadResponse, cancellationToken);
-                return await downloadResponse.Content.ReadAsStringAsync(cancellationToken);
-            }
-            throw new InvalidOperationException("The requested file did not contain readable text.");
-        }
+            throw new InvalidOperationException("The requested file did not contain readable base64 text. Files larger than GitHub's Contents API limit are not supported yet.");
 
         return System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(entry.Content.Replace("\n", "")));
     }
@@ -112,10 +99,19 @@ public sealed class GitHubDataService
 
     private sealed class GitHubContentEntry
     {
+        [JsonPropertyName("name")]
         public string Name { get; set; } = "";
+
+        [JsonPropertyName("type")]
         public string Type { get; set; } = "";
+
+        [JsonPropertyName("encoding")]
         public string? Encoding { get; set; }
+
+        [JsonPropertyName("content")]
         public string? Content { get; set; }
+
+        [JsonPropertyName("download_url")]
         public string? DownloadUrl { get; set; }
     }
 }
