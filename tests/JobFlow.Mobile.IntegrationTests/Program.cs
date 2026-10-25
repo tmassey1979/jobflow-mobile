@@ -73,7 +73,7 @@ static void Assert(bool condition, string message)
 static void ErrorMessagesAreSanitized()
 {
     var connection = new IntegrationConnection("github", "GitHub");
-    connection.MarkFailed("Network\\r\\nerror");
+    connection.MarkFailed("Network\r\nerror");
     Assert(connection.ErrorMessage == "Network  error", "line breaks should be flattened");
     connection.MarkFailed(new string('x', 300));
     Assert(connection.ErrorMessage?.Length == 240, "error text should be capped at 240 characters");
