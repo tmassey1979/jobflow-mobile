@@ -17,6 +17,11 @@
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.110" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Test harnesses are standalone projects and must not be compiled into the Android app. -->
+    <Compile Remove="tests/**/*.cs" />
+    <None Include="tests/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- Signal Mark adaptive icon: charcoal background + blue foreground (issue #31) -->
     <MauiIcon
       Include="Resources\AppIcon\appicon.svg"
