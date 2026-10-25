@@ -7,8 +7,6 @@ namespace JobFlow.Mobile.Services;
 
 public sealed class GitHubDataService
 {
-    private const string Owner = "tmassey1979";
-    private const string Repository = "Jobflow-data";
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -28,14 +26,25 @@ public sealed class GitHubDataService
         return client;
     }
 
-    public async Task<DailyFeed> LoadLatestFeedAsync(string token, CancellationToken cancellationToken = default)
+    public async Task<DailyFeed> LoadLatestFeedAsync(
+        string token,
+        string? owner = null,
+        string? repository = null,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(token))
-            throw new ArgumentException("Enter a GitHub token with read-only Contents access to the private Jobflow-data repository.", nameof(token));
+            throw new ArgumentException("Sign in with GitHub first.", nameof(token));
 
-        using var request = CreateRequest($"https://api.github.com/repos/{Owner}/{Repository}/contents/daily", token);
+        if (string.IsNullOrWhiteSpace(owner) || string.IsNullOrWhiteSpace(repository))
+        {
+            var selected = await GitHubAccountStore.GetSelectedRepositoryAsync();
+            owner = string.IsNullOrWhiteSpace(owner) ? selected.Owner : owner;
+            repository = string.IsNullOrWhiteSpace(repository) ? selected.Name : repository;
+        }
+
+        using var request = CreateRequest($"https://api.github.com/repos/{owner}/{repository}/contents/daily", token);
         using var response = await Http.SendAsync(request, cancellationToken);
-        await EnsureSuccessAsync(response);
+        await EnsureSuccessAsync(response, owner!, repository!);
         var listingJson = await response.Content.ReadAsStringAsync(cancellationToken);
         var entries = JsonSerializer.Deserialize<List<GitHubContentEntry>>(listingJson, JsonOptions) ?? [];
 
@@ -44,16 +53,21 @@ public sealed class GitHubDataService
         if (latestName is null)
             throw new InvalidOperationException("No dated JSON feeds in YYYY-MM-DD.json format were found in the repository's daily folder.");
 
-        var feedJson = await ReadTextFileAsync($"daily/{latestName}", token, cancellationToken);
+        var feedJson = await ReadTextFileAsync($"daily/{latestName}", token, owner!, repository!, cancellationToken);
         var feed = DailyFeedParser.Parse(feedJson);
-        feed.SourcePath = $"daily/{latestName}";
+        feed.SourcePath = $"{owner}/{repository}/daily/{latestName}";
         return feed;
     }
 
-    public async Task<string> ReadTextFileAsync(string relativePath, string token, CancellationToken cancellationToken = default)
+    public async Task<string> ReadTextFileAsync(
+        string relativePath,
+        string token,
+        string owner,
+        string repository,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(token))
-            throw new ArgumentException("A GitHub read token is required.", nameof(token));
+            throw new ArgumentException("Sign in with GitHub first.", nameof(token));
         if (string.IsNullOrWhiteSpace(relativePath))
             throw new ArgumentException("A repository-relative path is required.", nameof(relativePath));
 
@@ -62,9 +76,9 @@ public sealed class GitHubDataService
             throw new ArgumentException("Invalid repository-relative path.", nameof(relativePath));
 
         var escapedPath = string.Join("/", normalized.Split('/').Select(Uri.EscapeDataString));
-        using var request = CreateRequest($"https://api.github.com/repos/{Owner}/{Repository}/contents/{escapedPath}", token);
+        using var request = CreateRequest($"https://api.github.com/repos/{owner}/{repository}/contents/{escapedPath}", token);
         using var response = await Http.SendAsync(request, cancellationToken);
-        await EnsureSuccessAsync(response);
+        await EnsureSuccessAsync(response, owner, repository);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         var entry = JsonSerializer.Deserialize<GitHubContentEntry>(json, JsonOptions)
             ?? throw new InvalidOperationException("GitHub returned an empty file response.");
@@ -89,17 +103,16 @@ public sealed class GitHubDataService
         return request;
     }
 
-    private static Task EnsureSuccessAsync(HttpResponseMessage response)
+    private static Task EnsureSuccessAsync(HttpResponseMessage response, string owner, string repository)
     {
         if (response.IsSuccessStatusCode) return Task.CompletedTask;
         var message = response.StatusCode switch
         {
-            System.Net.HttpStatusCode.Unauthorized => "GitHub rejected the token. Check that it is valid and has read-only Contents access.",
-            System.Net.HttpStatusCode.Forbidden => "GitHub denied access. Check the token's repository access and rate limits.",
-            System.Net.HttpStatusCode.NotFound => "The private data repository or requested file was not found. Confirm the token can access Jobflow-data.",
+            System.Net.HttpStatusCode.Unauthorized => "GitHub rejected the sign-in session. Sign in again from Integrations.",
+            System.Net.HttpStatusCode.Forbidden => "GitHub denied access. Re-authorize the app or pick a repository you can read.",
+            System.Net.HttpStatusCode.NotFound => $"Repository {owner}/{repository} was not found or is not visible to this sign-in.",
             _ => $"GitHub request failed ({(int)response.StatusCode} {response.ReasonPhrase})."
         };
-        // Avoid displaying raw API response bodies, which may include private repository details.
         throw new InvalidOperationException(message);
     }
 

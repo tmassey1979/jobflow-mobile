@@ -5,7 +5,6 @@ namespace JobFlow.Mobile;
 
 public partial class MainPage : ContentPage
 {
-    private const string TokenStorageKey = "jobflow.github.readonly.token";
     private readonly GitHubDataService _dataService = new();
     private readonly FeedCacheService _cacheService = new();
     private readonly ApplicationTrackerService _applicationTracker = new();
@@ -13,19 +12,29 @@ public partial class MainPage : ContentPage
     public MainPage()
     {
         InitializeComponent();
-        _ = RestoreSavedTokenAsync();
+        _ = RefreshConnectionSummaryAsync();
         _ = LoadCachedFeedAsync();
     }
 
-    private async Task RestoreSavedTokenAsync()
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        _ = RefreshConnectionSummaryAsync();
+    }
+
+    private async Task RefreshConnectionSummaryAsync()
     {
         try
         {
-            TokenEntry.Text = await SecureStorage.Default.GetAsync(TokenStorageKey);
+            var token = await GitHubAccountStore.GetAccessTokenAsync();
+            var (owner, repo) = await GitHubAccountStore.GetSelectedRepositoryAsync();
+            ConnectionSummaryLabel.Text = string.IsNullOrWhiteSpace(token)
+                ? "Sign in with GitHub on the Integrations tab, then choose your data repository."
+                : $"Signed in · reading {owner}/{repo}. Change this on the Integrations tab.";
         }
         catch
         {
-            // Secure storage may be unavailable on some emulator/device configurations.
+            ConnectionSummaryLabel.Text = "Sign in with GitHub on the Integrations tab.";
         }
     }
 
@@ -38,7 +47,7 @@ public partial class MainPage : ContentPage
 
             JobsCollection.ItemsSource = cached.Jobs;
             FeedDateLabel.Text = $"Feed generated: {cached.GeneratedAt ?? "date not supplied"}";
-            StatusLabel.Text = $"Showing {cached.Jobs.Count} cached jobs from {cached.SourcePath ?? "the last successful sync"}. Connect to refresh.";
+            StatusLabel.Text = $"Showing {cached.Jobs.Count} cached jobs from {cached.SourcePath ?? "the last successful sync"}. Pull a fresh feed when online.";
         }
         catch
         {
@@ -48,34 +57,28 @@ public partial class MainPage : ContentPage
 
     private async void OnLoadJobsClicked(object sender, EventArgs e)
     {
-        var token = TokenEntry.Text?.Trim();
+        var token = await GitHubAccountStore.GetAccessTokenAsync();
         if (string.IsNullOrWhiteSpace(token))
         {
-            try { token = await SecureStorage.Default.GetAsync(TokenStorageKey); }
-            catch { /* A clear prompt is shown below if secure storage is unavailable. */ }
-        }
-
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            await DisplayAlertAsync("GitHub token needed", "Enter a fine-grained token with read-only Contents access to tmassey1979/Jobflow-data. You can also connect it on the Integrations tab.", "OK");
+            await DisplayAlertAsync(
+                "Sign in required",
+                "Open the Integrations tab, sign in with GitHub, and choose your data repository. You do not paste a token.",
+                "OK");
             return;
         }
 
         LoadButton.IsEnabled = false;
-        StatusLabel.Text = "Connecting to GitHub…";
+        StatusLabel.Text = "Loading latest feed from GitHub…";
         try
         {
-            var feed = await _dataService.LoadLatestFeedAsync(token);
+            var (owner, repo) = await GitHubAccountStore.GetSelectedRepositoryAsync();
+            var feed = await _dataService.LoadLatestFeedAsync(token, owner, repo);
             JobsCollection.ItemsSource = feed.Jobs;
             FeedDateLabel.Text = $"Feed generated: {feed.GeneratedAt ?? "date not supplied"}";
-            StatusLabel.Text = $"{feed.Jobs.Count} unique jobs loaded. Feed data is read-only.";
+            StatusLabel.Text = $"{feed.Jobs.Count} unique jobs from {owner}/{repo}. Feed data is read-only.";
 
             try { await _cacheService.SaveLatestAsync(feed); }
-            catch { StatusLabel.Text += " This refresh is available now, but the local cache could not be updated."; }
-
-            try { await SecureStorage.Default.SetAsync(TokenStorageKey, token); }
-            catch { StatusLabel.Text += " Android Secure Storage could not save the token."; }
-            TokenEntry.Text = string.Empty;
+            catch { StatusLabel.Text += " Local cache could not be updated."; }
         }
         catch (Exception)
         {
@@ -86,7 +89,10 @@ public partial class MainPage : ContentPage
                 FeedDateLabel.Text = $"Feed generated: {cached.GeneratedAt ?? "date not supplied"}";
                 StatusLabel.Text = $"Offline: showing {cached.Jobs.Count} cached jobs. GitHub refresh failed.";
             }
-            await DisplayAlertAsync("JobFlow couldn't refresh", "GitHub access or the feed could not be verified. If a saved feed exists, it remains available offline. Check the token, repository, network, and feed structure.", "OK");
+            await DisplayAlertAsync(
+                "JobFlow couldn't refresh",
+                "GitHub access or the feed could not be verified. If a saved feed exists, it remains available offline. Check sign-in, repository choice, network, and feed structure.",
+                "OK");
         }
         finally
         {
@@ -110,7 +116,7 @@ public partial class MainPage : ContentPage
         }
         catch
         {
-            await DisplayAlertAsync("Couldn't track job", "JobFlow could not save this job to the local application tracker. Check that the feed contains a stable job ID and try again.", "OK");
+            await DisplayAlertAsync("Couldn't track job", "JobFlow could not save this job to the local application tracker.", "OK");
         }
     }
 
