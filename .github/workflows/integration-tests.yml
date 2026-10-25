@@ -8,8 +8,11 @@ on:
       - "Models/ApplicationStages.cs"
       - "Models/ApplicationRecord.cs"
       - "Models/CachedFeedRecord.cs"
+      - "Models/CachedJobRecord.cs"
+      - "Models/DailyFeed.cs"
       - "Models/DatabaseMigrationRecord.cs"
       - "Services/LocalDatabaseService.cs"
+      - "Services/OfflineJobStore.cs"
       - "tests/JobFlow.Mobile.IntegrationTests/**"
       - ".github/workflows/integration-tests.yml"
   pull_request:
