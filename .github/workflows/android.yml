@@ -11,26 +11,33 @@ permissions:
   contents: read
 
 jobs:
+  contract-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Run feed contract tests
+        run: dotnet run --project tests/JobFlow.Mobile.ContractTests/JobFlow.Mobile.ContractTests.csproj --configuration Release
+
   build-android:
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
         uses: actions/checkout@v4
-
       - name: Install .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-
       - name: Install MAUI Android workload
         run: dotnet workload install maui-android
-
       - name: Restore
         run: dotnet restore JobFlow.Mobile.csproj
-
       - name: Publish Android APK
         run: dotnet publish JobFlow.Mobile.csproj -f net10.0-android -c Release -p:AndroidPackageFormat=apk -o artifacts/apk
-
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:

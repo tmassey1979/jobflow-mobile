@@ -13,7 +13,6 @@ public sealed class GitHubDataService
     {
         PropertyNameCaseInsensitive = true
     };
-
     private readonly HttpClient _httpClient = new();
 
     public async Task<DailyFeed> LoadLatestFeedAsync(string token, CancellationToken cancellationToken = default)
@@ -23,45 +22,36 @@ public sealed class GitHubDataService
 
         using var request = CreateRequest($"https://api.github.com/repos/{Owner}/{Repository}/contents/daily", token);
         using var response = await _httpClient.SendAsync(request, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
+        await EnsureSuccessAsync(response);
         var listingJson = await response.Content.ReadAsStringAsync(cancellationToken);
         var entries = JsonSerializer.Deserialize<List<GitHubContentEntry>>(listingJson, JsonOptions) ?? [];
 
-        var latest = entries
-            .Where(entry => entry.Type == "file"
-                && entry.Name.StartsWith("20", StringComparison.Ordinal)
-                && entry.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(entry => entry.Name, StringComparer.Ordinal)
-            .FirstOrDefault();
+        var latestName = DailyFeedParser.SelectLatestFeedFile(
+            entries.Where(entry => entry.Type == "file").Select(entry => entry.Name));
+        if (latestName is null)
+            throw new InvalidOperationException("No dated JSON feeds in YYYY-MM-DD.json format were found in the repository's daily folder.");
 
-        if (latest is null)
-            throw new InvalidOperationException("No dated JSON feeds were found in the repository's daily folder.");
-
-        var feedJson = await ReadTextFileAsync($"daily/{latest.Name}", token, cancellationToken);
-        var feed = JsonSerializer.Deserialize<DailyFeed>(feedJson, JsonOptions);
-        if (feed is null)
-            throw new InvalidOperationException($"The feed {latest.Name} was empty or invalid.");
-
-        feed.Jobs = feed.Jobs
-            .Where(job => !string.IsNullOrWhiteSpace(job.JobId))
-            .GroupBy(job => job.JobId, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .ToList();
-
+        var feedJson = await ReadTextFileAsync($"daily/{latestName}", token, cancellationToken);
+        var feed = DailyFeedParser.Parse(feedJson);
+        feed.SourcePath = $"daily/{latestName}";
         return feed;
     }
 
     public async Task<string> ReadTextFileAsync(string relativePath, string token, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(token))
+            throw new ArgumentException("A GitHub read token is required.", nameof(token));
+        if (string.IsNullOrWhiteSpace(relativePath))
+            throw new ArgumentException("A repository-relative path is required.", nameof(relativePath));
+
         var normalized = relativePath.TrimStart('/');
-        if (normalized.Split('/').Any(part => part == ".."))
+        if (normalized.Split('/').Any(part => part is ".." or "."))
             throw new ArgumentException("Invalid repository-relative path.", nameof(relativePath));
 
         var escapedPath = string.Join("/", normalized.Split('/').Select(Uri.EscapeDataString));
-        using var request = CreateRequest(
-            $"https://api.github.com/repos/{Owner}/{Repository}/contents/{escapedPath}", token);
+        using var request = CreateRequest($"https://api.github.com/repos/{Owner}/{Repository}/contents/{escapedPath}", token);
         using var response = await _httpClient.SendAsync(request, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
+        await EnsureSuccessAsync(response);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         var entry = JsonSerializer.Deserialize<GitHubContentEntry>(json, JsonOptions)
             ?? throw new InvalidOperationException("GitHub returned an empty file response.");
@@ -69,7 +59,14 @@ public sealed class GitHubDataService
         if (!string.Equals(entry.Encoding, "base64", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(entry.Content))
             throw new InvalidOperationException("The requested file did not contain readable base64 text. Files larger than GitHub's Contents API limit are not supported yet.");
 
-        return System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(entry.Content.Replace("\n", "")));
+        try
+        {
+            return System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(entry.Content.Replace("\n", "")));
+        }
+        catch (FormatException ex)
+        {
+            throw new InvalidOperationException("GitHub returned file content that was not valid base64.", ex);
+        }
     }
 
     private static HttpRequestMessage CreateRequest(string url, string token)
@@ -82,10 +79,9 @@ public sealed class GitHubDataService
         return request;
     }
 
-    private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    private static Task EnsureSuccessAsync(HttpResponseMessage response)
     {
-        if (response.IsSuccessStatusCode) return;
-
+        if (response.IsSuccessStatusCode) return Task.CompletedTask;
         var message = response.StatusCode switch
         {
             System.Net.HttpStatusCode.Unauthorized => "GitHub rejected the token. Check that it is valid and has read-only Contents access.",
@@ -93,25 +89,19 @@ public sealed class GitHubDataService
             System.Net.HttpStatusCode.NotFound => "The private data repository or requested file was not found. Confirm the token can access Jobflow-data.",
             _ => $"GitHub request failed ({(int)response.StatusCode} {response.ReasonPhrase})."
         };
-        var details = await response.Content.ReadAsStringAsync(cancellationToken);
-        throw new InvalidOperationException(string.IsNullOrWhiteSpace(details) ? message : $"{message} {details}");
+        // Avoid displaying raw API response bodies, which may include private repository details.
+        throw new InvalidOperationException(message);
     }
 
     private sealed class GitHubContentEntry
     {
         [JsonPropertyName("name")]
         public string Name { get; set; } = "";
-
         [JsonPropertyName("type")]
         public string Type { get; set; } = "";
-
         [JsonPropertyName("encoding")]
         public string? Encoding { get; set; }
-
         [JsonPropertyName("content")]
         public string? Content { get; set; }
-
-        [JsonPropertyName("download_url")]
-        public string? DownloadUrl { get; set; }
     }
 }
