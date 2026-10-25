@@ -68,7 +68,9 @@ public partial class IntegrationsPage : ContentPage
             _gitHubConnection.MarkConnected(new[] { "Latest feed read succeeded; token scopes are not introspected by the app" }, DateTimeOffset.UtcNow);
             GitHubTokenEntry.Text = string.Empty;
             GitHubStateLabel.Text = "Connected · feed read tested";
-            GitHubDetailsLabel.Text = $"Feed read verified. Found {feed.Jobs.Count} jobs in the latest dated feed ({feed.GeneratedAt ?? "generation date not supplied"}). Last successful test: {DateTimeOffset.Now:g}.";
+            var source = feed.SourcePath ?? "unknown path";
+            GitHubDetailsLabel.Text =
+                $"Feed read verified. Found {feed.Jobs.Count} jobs in {source} ({feed.GeneratedAt ?? "generation date not supplied"}). Last successful test: {DateTimeOffset.Now:g}.";
             DisconnectGitHubButton.IsVisible = true;
         }
         catch (Exception)
