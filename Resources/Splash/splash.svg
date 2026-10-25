@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 456 456" fill="none">
+  <!--
+    JobFlow Signal Mark — splash logo
+    Centered mark on transparent background; MAUI Color sets the splash field.
+    Keep geometry within the middle third for safe display on varied aspect ratios.
+  -->
+  <g transform="translate(228 228)">
+    <path
+      d="M -48 -14 L 0 -62 L 48 -14 L 26 -14 L 0 -36 L -26 -14 Z"
+      fill="#2563EB"/>
+    <path
+      d="M -48 22 L 0 -26 L 48 22 L 26 22 L 0 -2 L -26 22 Z"
+      fill="#2563EB"/>
+  </g>
+</svg>
