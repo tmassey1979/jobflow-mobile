@@ -13,17 +13,54 @@ public sealed class DailyFeed
     [JsonPropertyName("criteria")]
     public FeedCriteria? Criteria { get; set; }
 
+    [JsonPropertyName("verification_summary")]
+    public FeedVerificationSummary? VerificationSummary { get; set; }
+
     [JsonPropertyName("jobs")]
     public List<JobFeedItem> Jobs { get; set; } = [];
+
+    // Runtime-only troubleshooting metadata; it is not part of the JSON feed contract.
+    [JsonIgnore]
+    public string? SourcePath { get; set; }
 }
 
 public sealed class FeedCriteria
 {
-    [JsonPropertyName("minimum_annual_compensation_usd")]
-    public decimal? MinimumAnnualCompensationUsd { get; set; }
+    [JsonPropertyName("location")]
+    public string? Location { get; set; }
 
     [JsonPropertyName("remote_only")]
     public bool RemoteOnly { get; set; }
+
+    [JsonPropertyName("minimum_annual_compensation_usd")]
+    public decimal? MinimumAnnualCompensationUsd { get; set; }
+
+    [JsonPropertyName("max_jobs")]
+    public int? MaxJobs { get; set; }
+
+    [JsonPropertyName("skills")]
+    public List<string> Skills { get; set; } = [];
+
+    [JsonPropertyName("verification_policy")]
+    public string? VerificationPolicy { get; set; }
+}
+
+public sealed class FeedVerificationSummary
+{
+    [JsonPropertyName("qualifying_jobs")]
+    public int? QualifyingJobs { get; set; }
+
+    [JsonPropertyName("duplicates_removed")]
+    public int? DuplicatesRemoved { get; set; }
+
+    [JsonPropertyName("applications_submitted")]
+    public int? ApplicationsSubmitted { get; set; }
+
+    [JsonPropertyName("employer_or_recruiter_contacts_made")]
+    public int? EmployerOrRecruiterContactsMade { get; set; }
+
+    [JsonPropertyName("notes")]
+    public string? Notes { get; set; }
 }
 
 public sealed class JobFeedItem
@@ -51,6 +88,9 @@ public sealed class JobFeedItem
 
     [JsonPropertyName("verified_at")]
     public string? VerifiedAt { get; set; }
+
+    [JsonPropertyName("posting_date")]
+    public string? PostingDate { get; set; }
 
     [JsonPropertyName("application_url")]
     public string? ApplicationUrl { get; set; }
