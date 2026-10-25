@@ -13,6 +13,7 @@ on:
       - "Models/DatabaseMigrationRecord.cs"
       - "Services/LocalDatabaseService.cs"
       - "Services/OfflineJobStore.cs"
+      - "Services/FeedCacheService.cs"
       - "tests/JobFlow.Mobile.IntegrationTests/**"
       - ".github/workflows/integration-tests.yml"
   pull_request:
