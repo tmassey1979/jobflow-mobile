@@ -23,5 +23,10 @@
       ForegroundFile="Resources\AppIcon\appiconfg.svg"
       ForegroundScale="0.65"
       Color="#1A1A1A" />
+    <!-- Splash: centered Signal Mark on charcoal field -->
+    <MauiSplashScreen
+      Include="Resources\Splash\splash.svg"
+      Color="#1A1A1A"
+      BaseSize="128,128" />
   </ItemGroup>
 </Project>
