@@ -8,7 +8,9 @@ var tests = new (string Name, Action Run)[]
     ("not-configured providers cannot connect", NotConfiguredCannotConnect),
     ("sync timestamps require a connected provider", SyncRequiresConnected),
     ("permission names are deduplicated case-insensitively", PermissionsAreDeduplicated),
-    ("error messages are flattened and bounded", ErrorMessagesAreSanitized)
+    ("error messages are flattened and bounded", ErrorMessagesAreSanitized),
+    ("application stages progress in the declared order", ApplicationStagesProgressInOrder),
+    ("unknown application stage restarts at interested", UnknownApplicationStageRestarts)
 };
 var failures = 0;
 foreach (var test in tests)
@@ -77,4 +79,32 @@ static void ErrorMessagesAreSanitized()
     Assert(connection.ErrorMessage == "Network  error", "line breaks should be flattened");
     connection.MarkFailed(new string('x', 300));
     Assert(connection.ErrorMessage?.Length == 240, "error text should be capped at 240 characters");
+}
+
+static void ApplicationStagesProgressInOrder()
+{
+    var expected = new[]
+    {
+        ApplicationStages.Interested,
+        ApplicationStages.Preparing,
+        ApplicationStages.ReadyToApply,
+        ApplicationStages.Applied,
+        ApplicationStages.Interviewing,
+        ApplicationStages.Offer,
+        ApplicationStages.Rejected,
+        ApplicationStages.Interested
+    };
+
+    var current = expected[0];
+    for (var index = 1; index < expected.Length; index++)
+    {
+        current = ApplicationStages.Next(current);
+        Assert(current == expected[index], $"stage {index} should be {expected[index]} but was {current}");
+    }
+}
+
+static void UnknownApplicationStageRestarts()
+{
+    Assert(ApplicationStages.Next("unexpected") == ApplicationStages.Interested, "unknown stage should safely restart at Interested");
+    Assert(ApplicationStages.Next(null) == ApplicationStages.Interested, "missing stage should safely restart at Interested");
 }
