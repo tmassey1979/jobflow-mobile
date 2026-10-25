@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../Models/IntegrationConnection.cs" Link="Models/IntegrationConnection.cs" />
+    <Compile Include="../../Models/ApplicationStages.cs" Link="Models/ApplicationStages.cs" />
   </ItemGroup>
 </Project>
