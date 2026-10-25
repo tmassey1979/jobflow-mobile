@@ -48,4 +48,5 @@ public sealed class FeedCacheService
         return feed;
     }
 
-    private Task EnsureInitializedAsync() => _localDatabase.InitializeAsync();}
+    private Task EnsureInitializedAsync() => _localDatabase.InitializeAsync();
+}
