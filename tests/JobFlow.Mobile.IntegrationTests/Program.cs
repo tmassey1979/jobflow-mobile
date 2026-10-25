@@ -1,4 +1,6 @@
 using JobFlow.Mobile.Models;
+using JobFlow.Mobile.Services;
+using SQLite;
 
 var tests = new (string Name, Action Run)[]
 {
@@ -10,7 +12,8 @@ var tests = new (string Name, Action Run)[]
     ("permission names are deduplicated case-insensitively", PermissionsAreDeduplicated),
     ("error messages are flattened and bounded", ErrorMessagesAreSanitized),
     ("application stages progress in the declared order", ApplicationStagesProgressInOrder),
-    ("unknown application stage restarts at interested", UnknownApplicationStageRestarts)
+    ("unknown application stage restarts at interested", UnknownApplicationStageRestarts),
+    ("database migration preserves legacy cache data and is idempotent", DatabaseMigrationPreservesLegacyData)
 };
 var failures = 0;
 foreach (var test in tests)
@@ -99,4 +102,37 @@ static void UnknownApplicationStageRestarts()
 {
     Assert(ApplicationStages.Next("unexpected") == ApplicationStages.Interested, "unknown stage should safely restart at Interested");
     Assert(ApplicationStages.Next(null) == ApplicationStages.Interested, "missing stage should safely restart at Interested");
+}
+
+static void DatabaseMigrationPreservesLegacyData()
+{
+    var databasePath = Path.Combine(
+        Path.GetTempPath(),
+        $"jobflow-migration-tests-{Guid.NewGuid():N}",
+        "jobflow.db3");
+
+    // Simulate a pre-migration installation: a cache table already exists but no migration ledger.
+    var legacyConnection = new SQLiteAsyncConnection(databasePath);
+    legacyConnection.CreateTableAsync<CachedFeedRecord>().GetAwaiter().GetResult();
+    legacyConnection.InsertAsync(new CachedFeedRecord
+    {
+        Id = "latest",
+        GeneratedAt = "2026-10-24T12:00:00Z",
+        SourcePath = "daily/2026-10-24.json",
+        JsonPayload = "{\"schema_version\":1,\"jobs\":[]}",
+        CachedAtUtc = DateTime.UtcNow
+    }).GetAwaiter().GetResult();
+
+    var database = new LocalDatabaseService(databasePath);
+    database.InitializeAsync().GetAwaiter().GetResult();
+    database.InitializeAsync().GetAwaiter().GetResult();
+
+    var preserved = database.Connection.FindAsync<CachedFeedRecord>("latest").GetAwaiter().GetResult();
+    Assert(preserved is not null, "migration must preserve an existing cached feed");
+    Assert(preserved?.SourcePath == "daily/2026-10-24.json", "migration must preserve source metadata");
+
+    var migrations = database.Connection.Table<DatabaseMigrationRecord>().ToListAsync().GetAwaiter().GetResult();
+    Assert(migrations.Count(item => item.Version == 1) == 1, "repeated initialization must not duplicate migration records");
+    Assert(database.Connection.Table<ApplicationRecord>().ToListAsync().GetAwaiter().GetResult() is not null,
+        "migration should create the application table");
 }
