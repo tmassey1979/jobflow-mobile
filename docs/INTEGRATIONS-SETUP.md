@@ -4,7 +4,7 @@
 
 The native Android app exposes a Jobs tab and an Integrations tab.
 
-- **GitHub job feed:** the current supported path is a temporary fine-grained personal access token (PAT) fallback. Restrict it to `tmassey1979/Jobflow-data` and grant Contents: Read-only. The app tests access by loading the latest dated feed before storing the token in Android Secure Storage.
+- **GitHub job feed:** the current supported path is a temporary fine-grained personal access token (PAT) fallback. Configure it for only `tmassey1979/Jobflow-data` with Contents: Read-only. The app tests access by loading the latest dated feed before storing the token in Android Secure Storage. The app does not independently inspect or prove the token's configured permission set; the UI states this limitation. The current app code only performs feed-read requests.
 - **Google Calendar:** not configured yet. The UI intentionally does not pretend that OAuth is working and never asks for a Google password.
 - **External effects:** this integration slice cannot write to GitHub, submit applications, contact recruiters, or create/update/delete calendar events.
 
