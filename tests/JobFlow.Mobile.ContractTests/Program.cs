@@ -36,7 +36,7 @@ static void RemovesDuplicateIds()
     "company": "Other"
   }
 """;
-    var json = FeedJson().Replace("  }]\n}", $"  }},\n{duplicateJob}\n  ]\n}");
+    var json = FeedJson().Replace("  }]\n}", $"  }},\n{duplicateJob}\n  ]\n}}");
     var feed = DailyFeedParser.Parse(json);
     Assert(feed.Jobs.Count == 1, "duplicate IDs should collapse to one job");
     Assert(feed.Jobs[0].Title == "Senior Software Engineer", "the first occurrence should win");
