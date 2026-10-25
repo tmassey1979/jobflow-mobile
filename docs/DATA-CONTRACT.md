@@ -5,8 +5,9 @@ JobFlow Mobile reads from the existing private repository `tmassey1979/Jobflow-d
 ## Read paths
 
 - `daily/`: enumerate dated JSON feed files and select the newest filename that exactly matches `YYYY-MM-DD.json`.
-- `daily/YYYY-MM-DD.json`: read the feed envelope. Version 1 requires `schema_version: 1` and a `jobs[]` array; `generated_at`, `criteria`, and `verification_summary` may provide feed metadata.
-- Each job must have a stable non-empty `job_id`, `title`, and `company`. Compensation, remote scope, verification timestamp, application URL, match score, and relative paths to metadata, resume, cover letter, and tracking JSON are optional fields and must not be fabricated when absent.
+- `daily/YYYY-MM-DD.json`: read the feed envelope. Version 1 requires `schema_version: 1` and a `jobs[]` array. `generated_at`, `criteria`, and `verification_summary` are optional metadata objects.
+- Criteria may include location, remote-only preference, minimum annual compensation, maximum jobs, skills, and verification policy. Verification summary may include qualifying-job count, duplicates removed, application/outreach counts, and notes.
+- Each job must have a stable non-empty `job_id`, `title`, and `company`. Compensation, remote scope, verification timestamp, posting date, application URL, match score, and relative paths to metadata, resume, cover letter, and tracking JSON are optional fields and must not be fabricated when absent.
 - `jobs/<job-id>/metadata.json`, `resume.md`, `cover-letter.md`: job details and application-kit drafts.
 - `applications/<job-id>.json` and `history/events.jsonl`: application progress/history. Mobile writes are intentionally not implemented yet.
 
@@ -18,9 +19,10 @@ Use a fine-grained GitHub token limited to this repository with Contents: Read-o
 
 - Support only explicitly recognized feed schema versions; fail clearly on an unknown version rather than silently misreading it.
 - Ignore non-date files in `daily/`; choose the newest valid `YYYY-MM-DD.json` filename.
-- Reject malformed envelopes and jobs missing required identity fields.
+- Reject malformed envelopes, non-object job entries, and jobs missing required identity fields. An empty `jobs[]` array is valid and should display as an empty feed.
 - Deduplicate jobs by `job_id`, case-insensitively, preserving the first occurrence in the feed.
 - Keep parsing logic independent of HTTP so it can be tested with sanitized fixtures.
+- The app displays the feed generation timestamp and selected source path for troubleshooting.
 
 ## Safety and consistency
 
