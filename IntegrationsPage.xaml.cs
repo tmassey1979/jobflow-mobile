@@ -65,10 +65,10 @@ public partial class IntegrationsPage : ContentPage
         {
             var feed = await _dataService.LoadLatestFeedAsync(token);
             await SecureStorage.Default.SetAsync(TokenStorageKey, token);
-            _gitHubConnection.MarkConnected(new[] { "Private repository Contents: read-only" }, DateTimeOffset.UtcNow);
+            _gitHubConnection.MarkConnected(new[] { "Latest feed read succeeded; token scopes are not introspected by the app" }, DateTimeOffset.UtcNow);
             GitHubTokenEntry.Text = string.Empty;
-            GitHubStateLabel.Text = "Connected · read-only";
-            GitHubDetailsLabel.Text = $"Connection verified. Found {feed.Jobs.Count} jobs in the latest dated feed ({feed.GeneratedAt ?? "generation date not supplied"}). Last successful test: {DateTimeOffset.Now:g}.";
+            GitHubStateLabel.Text = "Connected · feed read tested";
+            GitHubDetailsLabel.Text = $"Feed read verified. Found {feed.Jobs.Count} jobs in the latest dated feed ({feed.GeneratedAt ?? "generation date not supplied"}). Last successful test: {DateTimeOffset.Now:g}.";
             DisconnectGitHubButton.IsVisible = true;
         }
         catch (Exception)
