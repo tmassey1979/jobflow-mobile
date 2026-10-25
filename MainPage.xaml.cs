@@ -8,6 +8,7 @@ public partial class MainPage : ContentPage
     private const string TokenStorageKey = "jobflow.github.readonly.token";
     private readonly GitHubDataService _dataService = new();
     private readonly FeedCacheService _cacheService = new();
+    private readonly ApplicationTrackerService _applicationTracker = new();
 
     public MainPage()
     {
@@ -110,6 +111,23 @@ public partial class MainPage : ContentPage
     {
         try { return await _cacheService.LoadLatestAsync(); }
         catch { return null; }
+    }
+
+    private async void OnTrackApplicationClicked(object sender, EventArgs e)
+    {
+        if (sender is not Button { BindingContext: JobFeedItem job }) return;
+        try
+        {
+            var record = await _applicationTracker.TrackAsync(job);
+            var message = record.CreatedAtUtc == record.UpdatedAtUtc
+                ? "Added to your local application tracker at Interested."
+                : $"Already tracked at stage: {record.Status}.";
+            await DisplayAlertAsync("Application tracker", message, "OK");
+        }
+        catch
+        {
+            await DisplayAlertAsync("Couldn't track job", "JobFlow could not save this job to the local application tracker. Check that the feed contains a stable job ID and try again.", "OK");
+        }
     }
 
     private async void OnOpenApplicationClicked(object sender, EventArgs e)
