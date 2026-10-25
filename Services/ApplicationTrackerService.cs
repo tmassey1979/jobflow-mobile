@@ -49,6 +49,36 @@ public sealed class ApplicationTrackerService
         return records.OrderByDescending(record => record.UpdatedAtUtc).ToList();
     }
 
+    public async Task<ApplicationRecord?> SetStatusAsync(string jobId, string status)
+    {
+        if (string.IsNullOrWhiteSpace(jobId))
+            throw new ArgumentException("A job ID is required.", nameof(jobId));
+        if (!ApplicationStages.All.Contains(status, StringComparer.OrdinalIgnoreCase))
+            throw new ArgumentException("Choose a valid application stage.", nameof(status));
+
+        await EnsureInitializedAsync();
+        var record = await _database.FindAsync<ApplicationRecord>(jobId);
+        if (record is null) return null;
+        record.Status = ApplicationStages.All.First(stage => string.Equals(stage, status, StringComparison.OrdinalIgnoreCase));
+        record.UpdatedAtUtc = DateTime.UtcNow;
+        await _database.UpdateAsync(record);
+        return record;
+    }
+
+    public async Task<ApplicationRecord?> UpdateNotesAsync(string jobId, string? notes)
+    {
+        if (string.IsNullOrWhiteSpace(jobId))
+            throw new ArgumentException("A job ID is required.", nameof(jobId));
+
+        await EnsureInitializedAsync();
+        var record = await _database.FindAsync<ApplicationRecord>(jobId);
+        if (record is null) return null;
+        record.Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
+        record.UpdatedAtUtc = DateTime.UtcNow;
+        await _database.UpdateAsync(record);
+        return record;
+    }
+
     public async Task<ApplicationRecord?> AdvanceAsync(string jobId)
     {
         if (string.IsNullOrWhiteSpace(jobId))
