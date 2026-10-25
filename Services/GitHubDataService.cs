@@ -32,7 +32,9 @@ public sealed class GitHubDataService
             throw new InvalidOperationException("No dated JSON feeds in YYYY-MM-DD.json format were found in the repository's daily folder.");
 
         var feedJson = await ReadTextFileAsync($"daily/{latestName}", token, cancellationToken);
-        return DailyFeedParser.Parse(feedJson);
+        var feed = DailyFeedParser.Parse(feedJson);
+        feed.SourcePath = $"daily/{latestName}";
+        return feed;
     }
 
     public async Task<string> ReadTextFileAsync(string relativePath, string token, CancellationToken cancellationToken = default)
