@@ -1,3 +1,4 @@
+using JobFlow.Mobile.Models;
 using JobFlow.Mobile.Services;
 
 namespace JobFlow.Mobile;
@@ -6,6 +7,7 @@ public partial class IntegrationsPage : ContentPage
 {
     private const string TokenStorageKey = "jobflow.github.readonly.token";
     private readonly GitHubDataService _dataService = new();
+    private readonly IntegrationConnection _gitHubConnection = new("github", "GitHub");
 
     public IntegrationsPage()
     {
@@ -18,12 +20,18 @@ public partial class IntegrationsPage : ContentPage
         try
         {
             var token = await SecureStorage.Default.GetAsync(TokenStorageKey);
-            var connected = !string.IsNullOrWhiteSpace(token);
-            GitHubStateLabel.Text = connected ? "Saved token" : "Not connected";
-            GitHubDetailsLabel.Text = connected
-                ? "A token is stored on this device. Test the connection to confirm access is still valid."
-                : "No GitHub token is stored on this device.";
-            DisconnectGitHubButton.IsVisible = connected;
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                GitHubStateLabel.Text = "Not connected";
+                GitHubDetailsLabel.Text = "No GitHub token is stored on this device.";
+                DisconnectGitHubButton.IsVisible = false;
+                return;
+            }
+
+            _gitHubConnection.MarkNeedsReauthentication("Stored token has not been tested in this session.");
+            GitHubStateLabel.Text = "Saved · needs test";
+            GitHubDetailsLabel.Text = "A token is stored on this device. Test the connection to confirm access is still valid.";
+            DisconnectGitHubButton.IsVisible = true;
         }
         catch
         {
@@ -50,20 +58,24 @@ public partial class IntegrationsPage : ContentPage
         }
 
         ConnectGitHubButton.IsEnabled = false;
+        _gitHubConnection.BeginConnect();
+        GitHubStateLabel.Text = "Connecting…";
         GitHubDetailsLabel.Text = "Testing private repository access…";
         try
         {
             var feed = await _dataService.LoadLatestFeedAsync(token);
             await SecureStorage.Default.SetAsync(TokenStorageKey, token);
+            _gitHubConnection.MarkConnected(new[] { "Private repository Contents: read-only" }, DateTimeOffset.UtcNow);
             GitHubTokenEntry.Text = string.Empty;
             GitHubStateLabel.Text = "Connected · read-only";
-            GitHubDetailsLabel.Text = $"Connection verified. Found {feed.Jobs.Count} jobs in the latest dated feed ({feed.GeneratedAt ?? "generation date not supplied"}).";
+            GitHubDetailsLabel.Text = $"Connection verified. Found {feed.Jobs.Count} jobs in the latest dated feed ({feed.GeneratedAt ?? "generation date not supplied"}). Last successful test: {DateTimeOffset.Now:g}.";
             DisconnectGitHubButton.IsVisible = true;
         }
         catch (Exception ex)
         {
+            _gitHubConnection.MarkFailed("Connection failed. Check token access, repository, feed, or network.");
             GitHubStateLabel.Text = "Connection failed";
-            GitHubDetailsLabel.Text = "GitHub access could not be verified. Check the token, repository access, network, and feed structure.";
+            GitHubDetailsLabel.Text = _gitHubConnection.ErrorMessage ?? "Connection failed. Try again.";
             await DisplayAlert("Couldn't connect to GitHub", ex.Message, "OK");
         }
         finally
@@ -84,6 +96,7 @@ public partial class IntegrationsPage : ContentPage
         try
         {
             SecureStorage.Default.Remove(TokenStorageKey);
+            _gitHubConnection.Disconnect();
             GitHubTokenEntry.Text = string.Empty;
             GitHubStateLabel.Text = "Not connected";
             GitHubDetailsLabel.Text = "The saved GitHub token was removed from this device.";
