@@ -15,8 +15,8 @@
         <CollectionView x:Name="ApplicationsCollection" Grid.Row="1" SelectionMode="None">
             <CollectionView.EmptyView>
                 <VerticalStackLayout Padding="24" Spacing="8" HorizontalOptions="Center" VerticalOptions="Center">
-                    <Label Text="Your tracker starts here" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" HorizontalTextAlignment="Center" />
-                    <Label Text="Use Track application on any job card to add it to your pipeline." TextColor="{StaticResource MutedInk}" HorizontalTextAlignment="Center" />
+                    <Label x:Name="EmptyTitleLabel" Text="Your tracker starts here" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" HorizontalTextAlignment="Center" />
+                    <Label x:Name="EmptyDescriptionLabel" Text="Use Track application on any job card to add it to your pipeline." TextColor="{StaticResource MutedInk}" HorizontalTextAlignment="Center" />
                 </VerticalStackLayout>
             </CollectionView.EmptyView>
             <CollectionView.ItemTemplate>
