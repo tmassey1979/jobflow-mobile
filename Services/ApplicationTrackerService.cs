@@ -8,14 +8,13 @@ namespace JobFlow.Mobile.Services;
 /// </summary>
 public sealed class ApplicationTrackerService
 {
+    private readonly LocalDatabaseService _localDatabase;
     private readonly SQLiteAsyncConnection _database;
-    private readonly SemaphoreSlim _initializationLock = new(1, 1);
-    private bool _initialized;
 
     public ApplicationTrackerService()
     {
-        var databasePath = Path.Combine(FileSystem.AppDataDirectory, "jobflow.db3");
-        _database = new SQLiteAsyncConnection(databasePath);
+        _localDatabase = LocalDatabaseService.Shared;
+        _database = _localDatabase.Connection;
     }
 
     public async Task<ApplicationRecord> TrackAsync(JobFeedItem job)
@@ -70,19 +69,7 @@ public sealed class ApplicationTrackerService
         return await _database.DeleteAsync<ApplicationRecord>(jobId) > 0;
     }
 
-    private async Task EnsureInitializedAsync()
-    {
-        if (_initialized) return;
-        await _initializationLock.WaitAsync();
-        try
-        {
-            if (_initialized) return;
-            await _database.CreateTableAsync<ApplicationRecord>();
-            _initialized = true;
-        }
-        finally { _initializationLock.Release(); }
-    }
-
+    private Task EnsureInitializedAsync() => _localDatabase.InitializeAsync();
     private static bool IsSafeHttps(string? value) =>
         Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
 }
