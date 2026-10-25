@@ -17,6 +17,10 @@ on:
     paths:
       - "Models/IntegrationConnection.cs"
       - "Models/ApplicationStages.cs"
+      - "Models/ApplicationRecord.cs"
+      - "Models/CachedFeedRecord.cs"
+      - "Models/DatabaseMigrationRecord.cs"
+      - "Services/LocalDatabaseService.cs"
       - "tests/JobFlow.Mobile.IntegrationTests/**"
       - ".github/workflows/integration-tests.yml"
 
