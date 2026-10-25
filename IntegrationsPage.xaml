@@ -20,7 +20,7 @@
                     <Button x:Name="ConnectGitHubButton" Text="Test and connect GitHub" Clicked="OnConnectGitHubClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
                     <Button x:Name="DisconnectGitHubButton" Text="Disconnect GitHub" Clicked="OnDisconnectGitHubClicked" IsVisible="False" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="10" />
                     <Label x:Name="GitHubDetailsLabel" Text="No connection test has run on this device." FontSize="12" TextColor="{StaticResource MutedInk}" />
-                    <Label Text="Permissions: private repository Contents read-only. No repository writes, applications, or outreach." FontSize="12" TextColor="{StaticResource MutedInk}" />
+                    <Label Text="JobFlow only makes feed-read requests here; it does not inspect the token's configured permissions. Restrict the token to this repository and Contents: Read-only. No repository writes, applications, or outreach." FontSize="12" TextColor="{StaticResource MutedInk}" />
                 </VerticalStackLayout>
             </Border>
 
