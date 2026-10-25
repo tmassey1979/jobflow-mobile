@@ -15,9 +15,9 @@ public sealed class FeedCacheService
     private readonly SQLiteAsyncConnection _database;
     private readonly OfflineJobStore _offlineJobStore;
 
-    public FeedCacheService()
+    public FeedCacheService(LocalDatabaseService? localDatabase = null)
     {
-        _localDatabase = LocalDatabaseService.Shared;
+        _localDatabase = localDatabase ?? LocalDatabaseService.Shared;
         _database = _localDatabase.Connection;
         _offlineJobStore = new OfflineJobStore(_localDatabase);
     }
