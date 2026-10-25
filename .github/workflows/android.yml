@@ -1,0 +1,40 @@
+name: Android build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install MAUI Android workload
+        run: dotnet workload install maui-android
+
+      - name: Restore
+        run: dotnet restore JobFlow.Mobile.csproj
+
+      - name: Publish Android APK
+        run: dotnet publish JobFlow.Mobile.csproj -f net10.0-android -c Release -p:AndroidPackageFormat=apk -o artifacts/apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jobflow-mobile-android-apk
+          path: artifacts/apk/*.apk
+          if-no-files-found: error
+          retention-days: 14
