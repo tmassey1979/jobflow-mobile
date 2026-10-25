@@ -9,7 +9,7 @@ namespace JobFlow.Mobile.Services;
 /// </summary>
 public sealed class LocalDatabaseService
 {
-    private const int CurrentSchemaVersion = 1;
+    private const int CurrentSchemaVersion = 2;
     private static readonly Lazy<LocalDatabaseService> SharedInstance =
         new(() => new LocalDatabaseService(GetDefaultDatabasePath()));
 
@@ -68,6 +68,22 @@ public sealed class LocalDatabaseService
                         Version = 1,
                         AppliedAtUtc = DateTime.UtcNow,
                         Description = "Create feed cache and local application tracker tables."
+                    });
+                });
+                version = 1;
+            }
+
+            if (version < 2)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await _connection.RunInTransactionAsync(database =>
+                {
+                    database.CreateTable<CachedJobRecord>();
+                    database.Insert(new DatabaseMigrationRecord
+                    {
+                        Version = 2,
+                        AppliedAtUtc = DateTime.UtcNow,
+                        Description = "Add normalized offline job cache."
                     });
                 });
             }
