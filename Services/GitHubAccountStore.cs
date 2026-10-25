@@ -32,7 +32,7 @@ public static class GitHubAccountStore
     }
 
     public static Task SetAccessTokenAsync(string token) =>
-        SecureStorage.Default.SetAsync((TokenKey, token.Trim());
+        SecureStorage.Default.SetAsync(TokenKey, token.Trim());
 
     public static async Task<(string Owner, string Name)> GetSelectedRepositoryAsync()
     {
