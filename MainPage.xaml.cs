@@ -42,7 +42,7 @@ public partial class MainPage : ContentPage
             // Validate access and feed structure before persisting credentials.
             var feed = await _dataService.LoadLatestFeedAsync(token);
             JobsCollection.ItemsSource = feed.Jobs;
-            FeedDateLabel.Text = $"Feed generated: {feed.GeneratedAt ?? "date not supplied"} · Source: {feed.SourcePath ?? "unknown"}";
+            FeedDateLabel.Text = $"Feed generated: {feed.GeneratedAt ?? "date not supplied"}";
             StatusLabel.Text = $"{feed.Jobs.Count} unique jobs loaded. Feed data is read-only.";
 
             try
