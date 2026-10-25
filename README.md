@@ -4,58 +4,51 @@ Private, Android-only JobFlow app built with .NET MAUI and C#.
 
 ## What works today
 
-- **Jobs tab** — connect with a fine-grained GitHub token, load the latest `daily/YYYY-MM-DD.json` feed from `tmassey1979/Jobflow-data`, open HTTPS application links, track a job locally.
+- **Jobs tab** — load the latest `daily/YYYY-MM-DD.json` feed from your chosen private data repo, open HTTPS application links, track a job locally.
 - **Applications tab** — search, set stage, notes, and follow-up dates (device-local SQLite only).
-- **Integrations tab** — save/test/disconnect the GitHub token (Secure Storage).
+- **Integrations tab** — **Sign in with GitHub** (browser device login), choose data repository, sign out.
 - **Offline** — last successful feed is cached locally; app still opens without network.
 
 No applications are submitted and nothing is written back to GitHub.
 
-## Install a CI build (fastest path)
+## Install a CI build (phone)
 
-1. Open the latest green **Android build** on `main`:
+1. Open the latest **green** Android build on `main`:  
    https://github.com/tmassey1979/jobflow-mobile/actions/workflows/android.yml
-2. Download the **jobflow-mobile-android-apk** artifact.
-3. Unzip and install on a device or emulator:
+2. Open the run → **Artifacts** → download **jobflow-mobile-android-apk** (this is a ZIP).
+3. On your computer, **unzip** it. Inside you should see **`JobFlow-Mobile.apk`** (not the ZIP itself).
+4. Copy `JobFlow-Mobile.apk` to the phone (USB, Drive, etc.).
+5. On the phone: open the APK → allow **Install unknown apps** for Files / your browser if asked.
 
-```sh
-adb install -r path/to/*.apk
-```
+### If install fails
 
-On the phone: enable **Install unknown apps** for your file manager / adb if prompted.
+Most common fixes:
+
+| Problem | Fix |
+|--------|-----|
+| “App not installed” after an older JobFlow build | Uninstall the old **JobFlow** app, then install again (signature / version conflict). |
+| Installing the **.zip** | Unzip first; install only `JobFlow-Mobile.apk`. |
+| Blocked by Play Protect / unknown apps | Settings → Apps → Special access → Install unknown apps → allow your Files app. |
+| `adb` available | `adb uninstall com.tmassey1979.jobflowmobile` then `adb install -r JobFlow-Mobile.apk` |
+
+Package id: `com.tmassey1979.jobflowmobile`  
+Min Android: **6.0** (API 23)+
 
 ## Run from source
-
-Install the .NET 10 SDK and the MAUI Android workload:
 
 ```sh
 dotnet workload install maui-android
 dotnet restore JobFlow.Mobile.csproj
-dotnet build JobFlow.Mobile.csproj -f net10.0-android -c Debug
-```
-
-Deploy to a connected device/emulator:
-
-```sh
-dotnet build JobFlow.Mobile.csproj -f net10.0-android -t:Install -p:AndroidDeviceSerial=<device-id>
-# or publish an APK:
 dotnet publish JobFlow.Mobile.csproj -f net10.0-android -c Release -p:AndroidPackageFormat=apk -o artifacts/apk
-adb install -r artifacts/apk/*.apk
 ```
 
 ## First-run checklist
 
-1. Create a **fine-grained** GitHub PAT with **Contents: Read-only** on **`tmassey1979/Jobflow-data` only**.
-2. Open the app → **Integrations** (or the Jobs connect card) → paste token → **Connect / Load**.
-3. Confirm jobs appear. Token is stored in Android Secure Storage; it is never logged or committed.
-4. Use **Track application** on a job card, then open the **Applications** tab.
-
-Revoke the token in GitHub settings when finished testing.
-
-## Private data access
-
-The app reads `daily/*.json` from the private data repository. Writes, recruiter outreach, and form submission are **not** implemented.
+1. Confirm your GitHub OAuth App has **Device Flow** enabled.
+2. Open the app → **Integrations** → **Sign in with GitHub** → approve in the browser.
+3. **Choose data repository** (e.g. `tmassey1979/Jobflow-data`).
+4. **Jobs** → **Load latest jobs**.
 
 ## CI
 
-GitHub Actions builds the Android target, runs contract + integration tests, and uploads an APK artifact. Builds verify compilation; they do not sign a Play Store release.
+GitHub Actions builds the Android target, runs tests, and uploads a single sideload APK named `JobFlow-Mobile.apk`. This is not a Play Store–signed release.

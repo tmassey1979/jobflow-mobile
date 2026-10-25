@@ -37,11 +37,41 @@ jobs:
       - name: Restore
         run: dotnet restore JobFlow.Mobile.csproj
       - name: Publish Android APK
-        run: dotnet publish JobFlow.Mobile.csproj -f net10.0-android -c Release -p:AndroidPackageFormat=apk -o artifacts/apk
+        run: |
+          dotnet publish JobFlow.Mobile.csproj \
+            -f net10.0-android \
+            -c Release \
+            -p:AndroidPackageFormat=apk \
+            -p:AndroidCreatePackagePerAbi=false \
+            -o artifacts/apk
+      - name: Normalize APK name for sideload
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/sideload
+          # Prefer a *-Signed.apk if present; otherwise any .apk from publish output.
+          mapfile -t apks < <(find artifacts/apk -type f -name '*.apk' | sort)
+          if [ "${#apks[@]}" -eq 0 ]; then
+            echo "No APK produced"
+            find artifacts/apk -type f | head -n 50 || true
+            exit 1
+          fi
+          chosen=""
+          for f in "${apks[@]}"; do
+            case "$f" in
+              *Signed*.apk) chosen="$f"; break ;;
+            esac
+          done
+          if [ -z "$chosen" ]; then
+            chosen="${apks[0]}"
+          fi
+          cp "$chosen" artifacts/sideload/JobFlow-Mobile.apk
+          ls -la artifacts/sideload/
+          # Quick sanity: APK zip local file header
+          file artifacts/sideload/JobFlow-Mobile.apk || true
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: jobflow-mobile-android-apk
-          path: artifacts/apk/*.apk
+          path: artifacts/sideload/JobFlow-Mobile.apk
           if-no-files-found: error
           retention-days: 14
