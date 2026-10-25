@@ -12,6 +12,10 @@
             Route="jobs"
             ContentTemplate="{DataTemplate local:MainPage}" />
         <ShellContent
+            Title="Applications"
+            Route="applications"
+            ContentTemplate="{DataTemplate local:ApplicationTrackerPage}" />
+        <ShellContent
             Title="Integrations"
             Route="integrations"
             ContentTemplate="{DataTemplate local:IntegrationsPage}" />
