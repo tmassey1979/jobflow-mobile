@@ -1,3 +1,4 @@
+using System.Globalization;
 using JobFlow.Mobile.Models;
 using JobFlow.Mobile.Services;
 
@@ -82,6 +83,65 @@ public partial class ApplicationTrackerPage : ContentPage
         catch
         {
             await DisplayAlertAsync("Couldn't update stage", "The selected stage could not be saved locally. Please try again.", "OK");
+        }
+    }
+
+    private async void OnFollowUpClicked(object sender, EventArgs e)
+    {
+        if (sender is not Button { CommandParameter: string jobId }) return;
+        var current = _allRecords.FirstOrDefault(record => record.JobId == jobId);
+        if (current is null) return;
+
+        var action = await DisplayActionSheetAsync(
+            "Follow-up date",
+            "Cancel",
+            null,
+            "Set date",
+            "Clear date");
+        if (string.Equals(action, "Cancel", StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(action))
+            return;
+
+        DateTime? dueAtUtc = null;
+        if (string.Equals(action, "Set date", StringComparison.Ordinal))
+        {
+            var currentDate = current.FollowUpAtUtc?.ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            var entered = await DisplayPromptAsync(
+                "Set follow-up date",
+                "Enter a date as YYYY-MM-DD. This is saved on this device only; it does not create a notification or calendar event.",
+                "Save",
+                "Cancel",
+                "YYYY-MM-DD",
+                maxLength: 10,
+                initialValue: currentDate ?? DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+
+            if (entered is null) return;
+            if (!DateTime.TryParseExact(
+                    entered.Trim(),
+                    "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out var parsedDate))
+            {
+                await DisplayAlertAsync("Date not recognized", "Please enter a valid date in YYYY-MM-DD format.", "OK");
+                return;
+            }
+
+            dueAtUtc = DateTime.SpecifyKind(parsedDate.Date.AddHours(17), DateTimeKind.Local).ToUniversalTime();
+        }
+        else if (!string.Equals(action, "Clear date", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        try
+        {
+            await _tracker.SetFollowUpAsync(jobId, dueAtUtc);
+            await RefreshAsync();
+        }
+        catch
+        {
+            await DisplayAlertAsync("Couldn't save follow-up", "The follow-up date could not be saved locally. Please try again.", "OK");
         }
     }
 
