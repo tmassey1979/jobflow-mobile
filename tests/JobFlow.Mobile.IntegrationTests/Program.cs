@@ -13,7 +13,8 @@ var tests = new (string Name, Action Run)[]
     ("error messages are flattened and bounded", ErrorMessagesAreSanitized),
     ("application stages progress in the declared order", ApplicationStagesProgressInOrder),
     ("unknown application stage restarts at interested", UnknownApplicationStageRestarts),
-    ("database migration preserves legacy cache data and is idempotent", DatabaseMigrationPreservesLegacyData)
+    ("database migration preserves legacy cache data and is idempotent", DatabaseMigrationPreservesLegacyData),
+    ("database refuses to downgrade a newer schema", NewerDatabaseSchemaIsRejected)
 };
 var failures = 0;
 foreach (var test in tests)
@@ -136,4 +137,25 @@ static void DatabaseMigrationPreservesLegacyData()
     Assert(migrations.Count(item => item.Version == 1) == 1, "repeated initialization must not duplicate migration records");
     Assert(database.Connection.Table<ApplicationRecord>().ToListAsync().GetAwaiter().GetResult() is not null,
         "migration should create the application table");
+}
+
+static void NewerDatabaseSchemaIsRejected()
+{
+    var databasePath = Path.Combine(
+        Path.GetTempPath(),
+        $"jobflow-newer-schema-tests-{Guid.NewGuid():N}",
+        "jobflow.db3");
+    Directory.CreateDirectory(Path.GetDirectoryName(databasePath)!);
+
+    var connection = new SQLiteAsyncConnection(databasePath);
+    connection.CreateTableAsync<DatabaseMigrationRecord>().GetAwaiter().GetResult();
+    connection.InsertAsync(new DatabaseMigrationRecord
+    {
+        Version = 2,
+        AppliedAtUtc = DateTime.UtcNow,
+        Description = "Simulated future schema"
+    }).GetAwaiter().GetResult();
+
+    var database = new LocalDatabaseService(databasePath);
+    ExpectThrows<InvalidOperationException>(() => database.InitializeAsync().GetAwaiter().GetResult());
 }
