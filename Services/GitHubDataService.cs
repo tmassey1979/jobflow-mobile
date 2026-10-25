@@ -13,7 +13,20 @@ public sealed class GitHubDataService
     {
         PropertyNameCaseInsensitive = true
     };
-    private readonly HttpClient _httpClient = new();
+
+    private static readonly HttpClient Http = CreateClient();
+
+    private static HttpClient CreateClient()
+    {
+        var client = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(45)
+        };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("JobFlow-Mobile/0.1");
+        client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+        client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
+        return client;
+    }
 
     public async Task<DailyFeed> LoadLatestFeedAsync(string token, CancellationToken cancellationToken = default)
     {
@@ -21,7 +34,7 @@ public sealed class GitHubDataService
             throw new ArgumentException("Enter a GitHub token with read-only Contents access to the private Jobflow-data repository.", nameof(token));
 
         using var request = CreateRequest($"https://api.github.com/repos/{Owner}/{Repository}/contents/daily", token);
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        using var response = await Http.SendAsync(request, cancellationToken);
         await EnsureSuccessAsync(response);
         var listingJson = await response.Content.ReadAsStringAsync(cancellationToken);
         var entries = JsonSerializer.Deserialize<List<GitHubContentEntry>>(listingJson, JsonOptions) ?? [];
@@ -50,7 +63,7 @@ public sealed class GitHubDataService
 
         var escapedPath = string.Join("/", normalized.Split('/').Select(Uri.EscapeDataString));
         using var request = CreateRequest($"https://api.github.com/repos/{Owner}/{Repository}/contents/{escapedPath}", token);
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        using var response = await Http.SendAsync(request, cancellationToken);
         await EnsureSuccessAsync(response);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         var entry = JsonSerializer.Deserialize<GitHubContentEntry>(json, JsonOptions)
@@ -73,9 +86,6 @@ public sealed class GitHubDataService
     {
         var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        request.Headers.UserAgent.ParseAdd("JobFlow-Mobile/0.1");
-        request.Headers.Accept.ParseAdd("application/vnd.github+json");
-        request.Headers.Add("X-GitHub-Api-Version", "2022-11-28");
         return request;
     }
 
