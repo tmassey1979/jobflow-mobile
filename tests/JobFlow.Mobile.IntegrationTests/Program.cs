@@ -1,4 +1,6 @@
 using JobFlow.Mobile.Models;
+using JobFlow.Mobile.Services;
+using SQLite;
 
 var tests = new (string Name, Action Run)[]
 {
@@ -11,7 +13,12 @@ var tests = new (string Name, Action Run)[]
     ("error messages are flattened and bounded", ErrorMessagesAreSanitized),
     ("application stages progress in the declared order", ApplicationStagesProgressInOrder),
     ("unknown application stage restarts at interested", UnknownApplicationStageRestarts),
-    ("only declared application stages are valid", ApplicationStageValidation)
+    ("only declared application stages are valid", ApplicationStageValidation),
+    ("SQLite native runtime is patched", SQLiteNativeRuntimeIsPatched),
+    ("database migration preserves legacy cache data and is idempotent", DatabaseMigrationPreservesLegacyData),
+    ("database refuses to downgrade a newer schema", NewerDatabaseSchemaIsRejected),
+    ("offline job imports deduplicate case-insensitively and survive feed omissions", OfflineJobImportsAreStable),
+    ("saving validated feed makes jobs available offline", FeedSavePersistsOfflineJobs)
 };
 var failures = 0;
 foreach (var test in tests)
@@ -102,6 +109,143 @@ static void UnknownApplicationStageRestarts()
     Assert(ApplicationStages.Next(null) == ApplicationStages.Interested, "missing stage should safely restart at Interested");
 }
 
+static void DatabaseMigrationPreservesLegacyData()
+{
+    var databasePath = Path.Combine(
+        Path.GetTempPath(),
+        $"jobflow-migration-tests-{Guid.NewGuid():N}",
+        "jobflow.db3");
+
+    // Simulate a pre-migration installation: a cache table already exists but no migration ledger.
+    Directory.CreateDirectory(Path.GetDirectoryName(databasePath)!);
+    var legacyConnection = new SQLiteAsyncConnection(databasePath);
+    legacyConnection.CreateTableAsync<CachedFeedRecord>().GetAwaiter().GetResult();
+    legacyConnection.InsertAsync(new CachedFeedRecord
+    {
+        Id = "latest",
+        GeneratedAt = "2026-10-24T12:00:00Z",
+        SourcePath = "daily/2026-10-24.json",
+        JsonPayload = "{\"schema_version\":1,\"jobs\":[]}",
+        CachedAtUtc = DateTime.UtcNow
+    }).GetAwaiter().GetResult();
+
+    var database = new LocalDatabaseService(databasePath);
+    database.InitializeAsync().GetAwaiter().GetResult();
+    database.InitializeAsync().GetAwaiter().GetResult();
+
+    var preserved = database.Connection.FindAsync<CachedFeedRecord>("latest").GetAwaiter().GetResult();
+    Assert(preserved is not null, "migration must preserve an existing cached feed");
+    Assert(preserved?.SourcePath == "daily/2026-10-24.json", "migration must preserve source metadata");
+
+    var migrations = database.Connection.Table<DatabaseMigrationRecord>().ToListAsync().GetAwaiter().GetResult();
+    Assert(migrations.Count(item => item.Version == 1) == 1, "repeated initialization must not duplicate migration records");
+    Assert(migrations.Count(item => item.Version == 2) == 1, "job-cache migration should be applied once");
+    Assert(migrations.Count(item => item.Version == 3) == 1, "follow-up migration should be applied once");
+    Assert(database.Connection.Table<CachedJobRecord>().ToListAsync().GetAwaiter().GetResult() is not null,
+        "migration should create the cached jobs table");
+    Assert(database.Connection.Table<ApplicationRecord>().ToListAsync().GetAwaiter().GetResult() is not null,
+        "migration should create the application table");
+    Assert(database.Connection.Table<ApplicationFollowUpRecord>().ToListAsync().GetAwaiter().GetResult() is not null,
+        "migration should create the application follow-up table");
+}
+
+static void NewerDatabaseSchemaIsRejected()
+{
+    var databasePath = Path.Combine(
+        Path.GetTempPath(),
+        $"jobflow-newer-schema-tests-{Guid.NewGuid():N}",
+        "jobflow.db3");
+    Directory.CreateDirectory(Path.GetDirectoryName(databasePath)!);
+
+    var connection = new SQLiteAsyncConnection(databasePath);
+    connection.CreateTableAsync<DatabaseMigrationRecord>().GetAwaiter().GetResult();
+    connection.InsertAsync(new DatabaseMigrationRecord
+    {
+        Version = 4,
+        AppliedAtUtc = DateTime.UtcNow,
+        Description = "Simulated future schema"
+    }).GetAwaiter().GetResult();
+
+    var database = new LocalDatabaseService(databasePath);
+    ExpectThrows<InvalidOperationException>(() => database.InitializeAsync().GetAwaiter().GetResult());
+}
+
+static void OfflineJobImportsAreStable()
+{
+    var databasePath = Path.Combine(Path.GetTempPath(), $"jobflow-offline-jobs-{Guid.NewGuid():N}", "jobflow.db3");
+    var localDatabase = new LocalDatabaseService(databasePath);
+    var store = new OfflineJobStore(localDatabase);
+    var firstFeed = new DailyFeed
+    {
+        SchemaVersion = 1,
+        GeneratedAt = "2026-10-25T10:00:00Z",
+        SourcePath = "daily/2026-10-25.json",
+        Jobs =
+        [
+            new JobFeedItem { JobId = "Job-ABC", Title = "Senior Engineer", Company = "Acme", ApplicationUrl = "https://jobs.example/apply" },
+            new JobFeedItem { JobId = "job-abc", Title = "Duplicate", Company = "Duplicate Co" }
+        ]
+    };
+
+    var imported = store.ImportFeedAsync(firstFeed).GetAwaiter().GetResult();
+    Assert(imported == 1, "case-insensitive duplicate job IDs should import only once");
+    var saved = store.FindAsync("JOB-ABC").GetAwaiter().GetResult();
+    Assert(saved is not null && saved.Title == "Senior Engineer", "job should be retrievable offline by case-insensitive ID");
+    Assert(saved?.ApplicationUrl == "https://jobs.example/apply", "safe HTTPS application URL should be retained");
+
+    var tracker = new SQLiteAsyncConnection(databasePath);
+    tracker.InsertAsync(new ApplicationRecord
+    {
+        JobId = "Job-ABC",
+        Title = "Senior Engineer",
+        Company = "Acme",
+        Status = ApplicationStages.Preparing,
+        Notes = "My private note",
+        CreatedAtUtc = DateTime.UtcNow,
+        UpdatedAtUtc = DateTime.UtcNow
+    }).GetAwaiter().GetResult();
+
+    var secondFeed = new DailyFeed
+    {
+        SchemaVersion = 1,
+        GeneratedAt = "2026-10-26T10:00:00Z",
+        SourcePath = "daily/2026-10-26.json",
+        Jobs = [new JobFeedItem { JobId = "job-xyz", Title = "Staff Engineer", Company = "Beta" }]
+    };
+    store.ImportFeedAsync(secondFeed).GetAwaiter().GetResult();
+
+    var all = store.GetAllAsync().GetAwaiter().GetResult();
+    Assert(all.Count == 2, "a later feed omission must not delete previously cached jobs");
+    var application = tracker.FindAsync<ApplicationRecord>("Job-ABC").GetAwaiter().GetResult();
+    Assert(application?.Status == ApplicationStages.Preparing, "job imports must not overwrite application progress");
+    Assert(application?.Notes == "My private note", "job imports must not overwrite user notes");
+}
+
+static void FeedSavePersistsOfflineJobs()
+{
+    var databasePath = Path.Combine(Path.GetTempPath(), $"jobflow-feed-cache-{Guid.NewGuid():N}", "jobflow.db3");
+    var database = new LocalDatabaseService(databasePath);
+    var feedCache = new FeedCacheService(database);
+    var feed = new DailyFeed
+    {
+        SchemaVersion = 1,
+        GeneratedAt = "2026-10-25T12:00:00Z",
+        SourcePath = "daily/2026-10-25.json",
+        Jobs = [new JobFeedItem { JobId = "job-feed-1", Title = "AI Engineer", Company = "Example Inc" }]
+    };
+
+    feedCache.SaveLatestAsync(feed).GetAwaiter().GetResult();
+    var loadedFeed = feedCache.LoadLatestAsync().GetAwaiter().GetResult();
+    var cachedJobs = new OfflineJobStore(database).GetAllAsync().GetAwaiter().GetResult();
+
+    Assert(loadedFeed?.Jobs.Count == 1, "the validated feed should remain loadable from the local cache");
+    Assert(cachedJobs.Count == 1 && cachedJobs[0].JobId == "job-feed-1",
+        "saving a feed should persist its jobs to the offline job store");
+    Assert(cachedJobs[0].FeedSourcePath == "daily/2026-10-25.json",
+        "cached jobs should retain their source feed path");
+}
+
+
 static void ApplicationStageValidation()
 {
     foreach (var stage in ApplicationStages.All)
@@ -111,4 +255,12 @@ static void ApplicationStageValidation()
     Assert(!ApplicationStages.IsValid("Apply now"), "unknown stage should be rejected");
     Assert(!ApplicationStages.IsValid(null), "missing stage should be rejected");
     Assert(!ApplicationStages.IsValid(" "), "blank stage should be rejected");
+}
+
+static void SQLiteNativeRuntimeIsPatched()
+{
+    using var database = new SQLite.SQLiteConnection(":memory:");
+    var versionText = database.ExecuteScalar<string>("select sqlite_version()");
+    Assert(Version.TryParse(versionText, out var version), $"SQLite returned an invalid version: {versionText}");
+    Assert(version >= new Version(3, 50, 2), $"SQLite {version} is older than patched version 3.50.2");
 }
