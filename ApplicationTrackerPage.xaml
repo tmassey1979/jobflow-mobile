@@ -27,6 +27,8 @@
                             <Label Text="{Binding Company}" FontSize="14" TextColor="{StaticResource Accent}" />
                             <Label Text="{Binding Status, StringFormat='Stage: {0}'}" FontSize="13" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
                             <Label Text="{Binding Notes, StringFormat='Notes: {0}'}" FontSize="12" TextColor="{StaticResource MutedInk}" />
+                            <Label Text="{Binding FollowUpDisplay}" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource Accent}" />
+                            <Button Text="Set follow-up date" Clicked="OnFollowUpClicked" CommandParameter="{Binding JobId}" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
                             <Button Text="Edit notes" Clicked="OnEditNotesClicked" CommandParameter="{Binding JobId}" BackgroundColor="#F1F3F7" TextColor="{StaticResource Ink}" CornerRadius="8" />
                             <Label Text="{Binding UpdatedAtUtc, StringFormat='Updated: {0:g} UTC'}" FontSize="11" TextColor="{StaticResource MutedInk}" />
                             <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
