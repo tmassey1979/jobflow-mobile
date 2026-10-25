@@ -10,7 +10,8 @@ var tests = new (string Name, Action Run)[]
     ("permission names are deduplicated case-insensitively", PermissionsAreDeduplicated),
     ("error messages are flattened and bounded", ErrorMessagesAreSanitized),
     ("application stages progress in the declared order", ApplicationStagesProgressInOrder),
-    ("unknown application stage restarts at interested", UnknownApplicationStageRestarts)
+    ("unknown application stage restarts at interested", UnknownApplicationStageRestarts),
+    ("only declared application stages are valid", ApplicationStageValidation)
 };
 var failures = 0;
 foreach (var test in tests)
@@ -99,4 +100,15 @@ static void UnknownApplicationStageRestarts()
 {
     Assert(ApplicationStages.Next("unexpected") == ApplicationStages.Interested, "unknown stage should safely restart at Interested");
     Assert(ApplicationStages.Next(null) == ApplicationStages.Interested, "missing stage should safely restart at Interested");
+}
+
+static void ApplicationStageValidation()
+{
+    foreach (var stage in ApplicationStages.All)
+        Assert(ApplicationStages.IsValid(stage), $"declared stage '{stage}' should be valid");
+
+    Assert(ApplicationStages.IsValid("applied"), "stage validation should ignore case");
+    Assert(!ApplicationStages.IsValid("Apply now"), "unknown stage should be rejected");
+    Assert(!ApplicationStages.IsValid(null), "missing stage should be rejected");
+    Assert(!ApplicationStages.IsValid(" "), "blank stage should be rejected");
 }
