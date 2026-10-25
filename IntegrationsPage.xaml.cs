@@ -20,9 +20,7 @@ public partial class IntegrationsPage : ContentPage
     {
         try
         {
-            var clientId = await GitHubAccountStore.GetClientIdAsync();
-            if (!string.IsNullOrWhiteSpace(clientId))
-                ClientIdEntry.Text = clientId;
+            ClientIdEntry.Text = await GitHubAccountStore.GetClientIdAsync();
 
             var token = await GitHubAccountStore.GetAccessTokenAsync();
             var (owner, repo) = await GitHubAccountStore.GetSelectedRepositoryAsync();
@@ -30,7 +28,7 @@ public partial class IntegrationsPage : ContentPage
             if (string.IsNullOrWhiteSpace(token))
             {
                 GitHubStateLabel.Text = "Not signed in";
-                GitHubDetailsLabel.Text = "Sign in with GitHub, then choose your data repository.";
+                GitHubDetailsLabel.Text = "Tap Sign in with GitHub, approve in the browser, then choose your data repository.";
                 ChooseRepoButton.IsVisible = false;
                 DisconnectGitHubButton.IsVisible = false;
                 DeviceCodeLabel.IsVisible = false;
@@ -114,7 +112,7 @@ public partial class IntegrationsPage : ContentPage
         {
             _gitHubConnection.MarkFailed("Sign-in failed.");
             GitHubStateLabel.Text = "Sign-in failed";
-            GitHubDetailsLabel.Text = "GitHub sign-in did not complete. Check the client ID, Device Flow setting, and network, then try again.";
+            GitHubDetailsLabel.Text = "GitHub sign-in did not complete. Check that Device Flow is enabled on the OAuth App and try again.";
             DeviceCodeLabel.IsVisible = false;
             await DisplayAlertAsync("Couldn't sign in", "GitHub login failed. Confirm the OAuth App has Device Flow enabled and try again.", "OK");
         }
@@ -164,7 +162,6 @@ public partial class IntegrationsPage : ContentPage
             return;
         }
 
-        // Action sheet is capped; show the most relevant first (default Jobflow-data boosted in service).
         var options = repos.Take(12).Select(r => r.FullName).ToArray();
         var selected = await DisplayActionSheetAsync("Choose data repository", "Cancel", null, options);
         if (string.IsNullOrWhiteSpace(selected) || string.Equals(selected, "Cancel", StringComparison.OrdinalIgnoreCase))
