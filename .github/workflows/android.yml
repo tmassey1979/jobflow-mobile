@@ -2,7 +2,7 @@ name: Android build
 
 on:
   push:
-    branches: [main]
+    branches: [main, "work/phase-1-integrations-hub"]
   pull_request:
     branches: [main]
   workflow_dispatch:
