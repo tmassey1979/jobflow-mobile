@@ -13,6 +13,11 @@ public static class GitHubAccountStore
     public const string DefaultOwner = "tmassey1979";
     public const string DefaultRepo = "Jobflow-data";
 
+    /// <summary>
+    /// Public OAuth App client ID (not a secret). Used when the user has not overridden it on device.
+    /// </summary>
+    public const string DefaultClientId = "Ov23liEzPPsOeMKTOQHn";
+
     // Legacy key from the temporary PAT paste flow — migrated on read, then removed.
     private const string LegacyTokenKey = "jobflow.github.readonly.token";
 
@@ -49,7 +54,11 @@ public static class GitHubAccountStore
         await SecureStorage.Default.SetAsync(RepoKey, name.Trim());
     }
 
-    public static Task<string?> GetClientIdAsync() => TryGetAsync(ClientIdKey);
+    public static async Task<string> GetClientIdAsync()
+    {
+        var stored = await TryGetAsync(ClientIdKey);
+        return string.IsNullOrWhiteSpace(stored) ? DefaultClientId : stored.Trim();
+    }
 
     public static Task SetClientIdAsync(string clientId) =>
         SecureStorage.Default.SetAsync(ClientIdKey, clientId.Trim());
