@@ -10,7 +10,8 @@ var tests = new (string Name, Action Run)[]
     ("permission names are deduplicated case-insensitively", PermissionsAreDeduplicated),
     ("error messages are flattened and bounded", ErrorMessagesAreSanitized),
     ("application stages progress in the declared order", ApplicationStagesProgressInOrder),
-    ("unknown application stage restarts at interested", UnknownApplicationStageRestarts)
+    ("unknown application stage restarts at interested", UnknownApplicationStageRestarts),
+    ("SQLite native runtime is patched", SQLiteNativeRuntimeIsPatched)
 };
 var failures = 0;
 foreach (var test in tests)
@@ -99,4 +100,12 @@ static void UnknownApplicationStageRestarts()
 {
     Assert(ApplicationStages.Next("unexpected") == ApplicationStages.Interested, "unknown stage should safely restart at Interested");
     Assert(ApplicationStages.Next(null) == ApplicationStages.Interested, "missing stage should safely restart at Interested");
+}
+
+static void SQLiteNativeRuntimeIsPatched()
+{
+    using var database = new SQLite.SQLiteConnection(":memory:");
+    var versionText = database.ExecuteScalar<string>("select sqlite_version()");
+    Assert(Version.TryParse(versionText, out var version), $"SQLite returned an invalid version: {versionText}");
+    Assert(version >= new Version(3, 50, 2), $"SQLite {version} is older than patched version 3.50.2");
 }
