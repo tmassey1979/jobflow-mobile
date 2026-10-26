@@ -106,6 +106,96 @@ public partial class MainPage : ContentPage
         catch { return null; }
     }
 
+    private async void OnViewResumeClicked(object sender, EventArgs e)
+    {
+        if (sender is not Button { BindingContext: JobFeedItem job }) return;
+        await OpenDocumentAsync(job, DocumentKind.Resume);
+    }
+
+    private async void OnViewCoverLetterClicked(object sender, EventArgs e)
+    {
+        if (sender is not Button { BindingContext: JobFeedItem job }) return;
+        await OpenDocumentAsync(job, DocumentKind.CoverLetter);
+    }
+
+    private async Task OpenDocumentAsync(JobFeedItem job, DocumentKind kind)
+    {
+        var token = await GitHubAccountStore.GetAccessTokenAsync();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            await DisplayAlertAsync("Sign in required", "Sign in with GitHub on the Integrations tab before opening documents.", "OK");
+            return;
+        }
+
+        var (owner, repo) = await GitHubAccountStore.GetSelectedRepositoryAsync();
+        var title = kind == DocumentKind.Resume ? "Resume" : "Cover letter";
+        var subtitle = $"{job.Title} · {job.Company}";
+        var candidates = BuildDocumentPaths(job, kind);
+
+        if (candidates.Count == 0)
+        {
+            await Navigation.PushAsync(new DocumentViewerPage(
+                title,
+                subtitle,
+                "No document path is available for this job in the feed."));
+            return;
+        }
+
+        StatusLabel.Text = $"Loading {title.ToLowerInvariant()}…";
+        Exception? lastError = null;
+        foreach (var path in candidates)
+        {
+            try
+            {
+                var text = await _dataService.ReadTextFileAsync(path, token, owner, repo);
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    lastError = new InvalidOperationException("The file was empty.");
+                    continue;
+                }
+
+                StatusLabel.Text = $"Opened {title.ToLowerInvariant()} from {path}.";
+                await Navigation.PushAsync(new DocumentViewerPage(title, subtitle, $"{owner}/{repo}/{path}", text));
+                return;
+            }
+            catch (Exception ex)
+            {
+                lastError = ex;
+            }
+        }
+
+        StatusLabel.Text = $"Could not open {title.ToLowerInvariant()}.";
+        var detail = lastError?.Message ?? "File not found in the data repository.";
+        await Navigation.PushAsync(new DocumentViewerPage(
+            title,
+            subtitle,
+            $"Could not read this document from {owner}/{repo}. Tried: {string.Join(", ", candidates)}. {detail}"));
+    }
+
+    private static List<string> BuildDocumentPaths(JobFeedItem job, DocumentKind kind)
+    {
+        var paths = new List<string>();
+        var preferred = kind == DocumentKind.Resume ? job.ResumePath : job.CoverLetterPath;
+        if (!string.IsNullOrWhiteSpace(preferred))
+            paths.Add(preferred.Trim().TrimStart('/'));
+
+        if (!string.IsNullOrWhiteSpace(job.JobId))
+        {
+            var fileName = kind == DocumentKind.Resume ? "resume.md" : "cover-letter.md";
+            var fallback = $"jobs/{job.JobId}/{fileName}";
+            if (!paths.Contains(fallback, StringComparer.OrdinalIgnoreCase))
+                paths.Add(fallback);
+        }
+
+        return paths;
+    }
+
+    private enum DocumentKind
+    {
+        Resume,
+        CoverLetter
+    }
+
     private async void OnTrackApplicationClicked(object sender, EventArgs e)
     {
         if (sender is not Button { BindingContext: JobFeedItem job }) return;

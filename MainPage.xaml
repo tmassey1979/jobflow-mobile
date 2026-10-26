@@ -47,6 +47,10 @@
                             <Label Text="{Binding SalaryLabel}" FontSize="13" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
                             <Label Text="{Binding RemoteScope}" FontSize="12" TextColor="{StaticResource MutedInk}" />
                             <Label Text="{Binding MatchScore, StringFormat='Match score: {0}%'}" FontSize="12" TextColor="{StaticResource MutedInk}" />
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                <Button Grid.Column="0" Text="Resume" Clicked="OnViewResumeClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
+                                <Button Grid.Column="1" Text="Cover letter" Clicked="OnViewCoverLetterClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
+                            </Grid>
                             <Button Text="Track application" Clicked="OnTrackApplicationClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
                             <Button Text="Open application" Clicked="OnOpenApplicationClicked" CommandParameter="{Binding ApplicationUrl}" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
                         </VerticalStackLayout>

@@ -44,7 +44,7 @@ public sealed class GitHubDataService
 
         using var request = CreateRequest($"https://api.github.com/repos/{owner}/{repository}/contents/daily", token);
         using var response = await Http.SendAsync(request, cancellationToken);
-        await EnsureSuccessAsync(response, owner!, repository!);
+        await EnsureSuccessAsync(response, owner!, repository!, pathHint: "daily");
         var listingJson = await response.Content.ReadAsStringAsync(cancellationToken);
         var entries = JsonSerializer.Deserialize<List<GitHubContentEntry>>(listingJson, JsonOptions) ?? [];
 
@@ -78,13 +78,13 @@ public sealed class GitHubDataService
         var escapedPath = string.Join("/", normalized.Split('/').Select(Uri.EscapeDataString));
         using var request = CreateRequest($"https://api.github.com/repos/{owner}/{repository}/contents/{escapedPath}", token);
         using var response = await Http.SendAsync(request, cancellationToken);
-        await EnsureSuccessAsync(response, owner, repository);
+        await EnsureSuccessAsync(response, owner, repository, pathHint: normalized);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         var entry = JsonSerializer.Deserialize<GitHubContentEntry>(json, JsonOptions)
             ?? throw new InvalidOperationException("GitHub returned an empty file response.");
 
         if (!string.Equals(entry.Encoding, "base64", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(entry.Content))
-            throw new InvalidOperationException("The requested file did not contain readable base64 text. Files larger than GitHub's Contents API limit are not supported yet.");
+            throw new InvalidOperationException("The requested file did not contain readable base64 text. Files larger than GitHub's Contents API limit (about 1 MB) are not supported yet.");
 
         try
         {
@@ -103,14 +103,15 @@ public sealed class GitHubDataService
         return request;
     }
 
-    private static Task EnsureSuccessAsync(HttpResponseMessage response, string owner, string repository)
+    private static Task EnsureSuccessAsync(HttpResponseMessage response, string owner, string repository, string? pathHint = null)
     {
         if (response.IsSuccessStatusCode) return Task.CompletedTask;
+        var pathPart = string.IsNullOrWhiteSpace(pathHint) ? string.Empty : $" ({pathHint})";
         var message = response.StatusCode switch
         {
             System.Net.HttpStatusCode.Unauthorized => "GitHub rejected the sign-in session. Sign in again from Integrations.",
             System.Net.HttpStatusCode.Forbidden => "GitHub denied access. Re-authorize the app or pick a repository you can read.",
-            System.Net.HttpStatusCode.NotFound => $"Repository {owner}/{repository} was not found or is not visible to this sign-in.",
+            System.Net.HttpStatusCode.NotFound => $"File or folder not found in {owner}/{repository}{pathPart}.",
             _ => $"GitHub request failed ({(int)response.StatusCode} {response.ReasonPhrase})."
         };
         throw new InvalidOperationException(message);

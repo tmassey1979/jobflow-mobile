@@ -9,11 +9,13 @@ JobFlow Mobile reads from the existing private repository `tmassey1979/Jobflow-d
 - Criteria may include location, remote-only preference, minimum annual compensation, maximum jobs, skills, and verification policy. Verification summary may include qualifying-job count, duplicates removed, application/outreach counts, and notes.
 - Each job must have a stable non-empty `job_id`, `title`, and `company`. Compensation, remote scope, verification timestamp, posting date, application URL, match score, and relative paths to metadata, resume, cover letter, and tracking JSON are optional fields and must not be fabricated when absent.
 - `jobs/<job-id>/metadata.json`, `resume.md`, `cover-letter.md`: job details and application-kit drafts.
+- When the feed supplies `resume_path` or `cover_letter_path`, the app loads those first. Otherwise it falls back to `jobs/<job-id>/resume.md` and `jobs/<job-id>/cover-letter.md`.
+- Documents are shown read-only in the app. Markdown is displayed as plain text for now (no remote rendering).
 - `applications/<job-id>.json` and `history/events.jsonl`: application progress/history. Mobile writes are intentionally not implemented yet.
 
 ## Authentication
 
-Use a fine-grained GitHub token limited to this repository with Contents: Read-only. Keep it in Android Secure Storage; never hardcode it or log it. GitHub API requests use HTTPS and a User-Agent. Do not show raw API error response bodies to users.
+Sign in with GitHub (device login) or a restricted token. Keep credentials in Android Secure Storage; never hardcode or log them. GitHub API requests use HTTPS and a User-Agent. Do not show raw API error response bodies to users.
 
 ## Parsing and validation
 
@@ -28,5 +30,5 @@ Use a fine-grained GitHub token limited to this repository with Contents: Read-o
 
 - Treat `job_id` as the deduplication key.
 - Preserve the data repo's schemas and existing paths; do not duplicate the data repository into this app repository.
-- This first implementation does not push commits, edit tracking JSON, submit applications, or contact employers.
+- This implementation does not push commits, edit tracking JSON, submit applications, or contact employers.
 - Offline SQLite persistence, sync timestamps, conflict handling, and approved write/backup operations are follow-up work.
