@@ -8,7 +8,8 @@ public partial class ApplicationTrackerPage : ContentPage
 {
     private readonly ApplicationTrackerService _tracker = new();
     private IReadOnlyList<ApplicationRecord> _allRecords = Array.Empty<ApplicationRecord>();
-    private FollowUpFilter _filter = FollowUpFilter.All;
+    private FollowUpFilter _followUpFilter = FollowUpFilter.All;
+    private string? _stageFilter;
 
     public ApplicationTrackerPage()
     {
@@ -38,30 +39,52 @@ public partial class ApplicationTrackerPage : ContentPage
 
     private void OnFilterAllClicked(object sender, EventArgs e)
     {
-        _filter = FollowUpFilter.All;
+        _followUpFilter = FollowUpFilter.All;
+        _stageFilter = null;
         UpdateFilterButtons();
         ApplySearch(SearchEntry.Text);
     }
 
     private void OnFilterOverdueClicked(object sender, EventArgs e)
     {
-        _filter = FollowUpFilter.Overdue;
+        _followUpFilter = FollowUpFilter.Overdue;
+        _stageFilter = null;
         UpdateFilterButtons();
         ApplySearch(SearchEntry.Text);
     }
 
     private void OnFilterDueSoonClicked(object sender, EventArgs e)
     {
-        _filter = FollowUpFilter.DueSoon;
+        _followUpFilter = FollowUpFilter.DueSoon;
+        _stageFilter = null;
+        UpdateFilterButtons();
+        ApplySearch(SearchEntry.Text);
+    }
+
+    private async void OnFilterStageClicked(object sender, EventArgs e)
+    {
+        var options = ApplicationStages.All.ToList();
+        options.Insert(0, "Any stage");
+        var selected = await DisplayActionSheetAsync("Filter by stage", "Cancel", null, options.ToArray());
+        if (string.IsNullOrWhiteSpace(selected)
+            || string.Equals(selected, "Cancel", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        _followUpFilter = FollowUpFilter.All;
+        _stageFilter = string.Equals(selected, "Any stage", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : selected;
         UpdateFilterButtons();
         ApplySearch(SearchEntry.Text);
     }
 
     private void UpdateFilterButtons()
     {
-        StyleFilterButton(FilterAllButton, _filter == FollowUpFilter.All);
-        StyleFilterButton(FilterOverdueButton, _filter == FollowUpFilter.Overdue);
-        StyleFilterButton(FilterDueSoonButton, _filter == FollowUpFilter.DueSoon);
+        StyleFilterButton(FilterAllButton, _followUpFilter == FollowUpFilter.All && _stageFilter is null);
+        StyleFilterButton(FilterOverdueButton, _followUpFilter == FollowUpFilter.Overdue);
+        StyleFilterButton(FilterDueSoonButton, _followUpFilter == FollowUpFilter.DueSoon);
+        StyleFilterButton(FilterStageButton, _stageFilter is not null);
+        FilterStageButton.Text = _stageFilter is null ? "Stage" : _stageFilter;
     }
 
     private static void StyleFilterButton(Button button, bool selected)
@@ -83,12 +106,18 @@ public partial class ApplicationTrackerPage : ContentPage
         var normalized = query?.Trim();
         IEnumerable<ApplicationRecord> source = _allRecords;
 
-        source = _filter switch
+        source = _followUpFilter switch
         {
             FollowUpFilter.Overdue => source.Where(r => r.IsFollowUpOverdue),
             FollowUpFilter.DueSoon => source.Where(r => r.IsFollowUpDueSoon),
             _ => source
         };
+
+        if (!string.IsNullOrEmpty(_stageFilter))
+        {
+            source = source.Where(r =>
+                string.Equals(r.Status, _stageFilter, StringComparison.OrdinalIgnoreCase));
+        }
 
         if (!string.IsNullOrEmpty(normalized))
         {
@@ -115,15 +144,35 @@ public partial class ApplicationTrackerPage : ContentPage
             ? $"{_allRecords.Count} tracked · {overdue} overdue · {dueSoon} due soon · {applied} applied"
             : $"{filtered.Count} of {_allRecords.Count} match “{normalized}”";
 
+        PipelineLabel.Text = BuildPipelineSummary(_allRecords);
+
         var noRecords = _allRecords.Count == 0;
         EmptyTitleLabel.Text = noRecords ? "Your tracker starts here" : "No matching roles";
         EmptyDescriptionLabel.Text = noRecords
             ? "Use Track application on any job card to add it to your pipeline."
-            : _filter == FollowUpFilter.Overdue
+            : _followUpFilter == FollowUpFilter.Overdue
                 ? "No overdue follow-ups right now."
-                : _filter == FollowUpFilter.DueSoon
+                : _followUpFilter == FollowUpFilter.DueSoon
                     ? "Nothing due in the next 3 days."
-                    : "Try another title, company, stage, or note.";
+                    : _stageFilter is not null
+                        ? $"No roles in stage {_stageFilter}."
+                        : "Try another title, company, stage, or note.";
+    }
+
+    private static string BuildPipelineSummary(IReadOnlyList<ApplicationRecord> records)
+    {
+        if (records.Count == 0)
+            return "Pipeline: empty";
+
+        var parts = ApplicationStages.All
+            .Select(stage =>
+            {
+                var count = records.Count(r => string.Equals(r.Status, stage, StringComparison.OrdinalIgnoreCase));
+                return count > 0 ? $"{stage} {count}" : null;
+            })
+            .Where(part => part is not null);
+
+        return "Pipeline: " + string.Join(" · ", parts);
     }
 
     private async void OnChooseStageClicked(object sender, EventArgs e)
