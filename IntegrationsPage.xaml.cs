@@ -21,8 +21,6 @@ public partial class IntegrationsPage : ContentPage
     {
         try
         {
-            ClientIdEntry.Text = await GitHubAccountStore.GetClientIdAsync();
-
             var token = await GitHubAccountStore.GetAccessTokenAsync();
             var (owner, repo) = await GitHubAccountStore.GetSelectedRepositoryAsync();
 
@@ -50,18 +48,7 @@ public partial class IntegrationsPage : ContentPage
 
     private async void OnSignInGitHubClicked(object sender, EventArgs e)
     {
-        var clientId = ClientIdEntry.Text?.Trim();
-        if (string.IsNullOrWhiteSpace(clientId))
-            clientId = await GitHubAccountStore.GetClientIdAsync();
-
-        if (string.IsNullOrWhiteSpace(clientId))
-        {
-            await DisplayAlertAsync(
-                "OAuth App client ID needed",
-                "Create a GitHub OAuth App (github.com/settings/developers), enable Device Flow, and paste the public Client ID here. No client secret is used.",
-                "OK");
-            return;
-        }
+        var clientId = GitHubAccountStore.DefaultClientId;
 
         SignInGitHubButton.IsEnabled = false;
         _loginCts?.Cancel();
@@ -70,7 +57,6 @@ public partial class IntegrationsPage : ContentPage
 
         try
         {
-            await GitHubAccountStore.SetClientIdAsync(clientId);
             _gitHubConnection.BeginConnect();
             GitHubStateLabel.Text = "Starting GitHub login…";
             GitHubDetailsLabel.Text = "Requesting a one-time code from GitHub…";
