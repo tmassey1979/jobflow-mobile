@@ -1,8 +1,5 @@
-using System.Text;
 using System.Text.Json;
 using JobFlow.Mobile.Services;
-using Microsoft.Maui.ApplicationModel.DataTransfer;
-using Microsoft.Maui.Storage;
 
 namespace JobFlow.Mobile;
 
@@ -89,19 +86,16 @@ public partial class SettingsPage : ContentPage
                 r.UpdatedAtUtc
             });
             var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
-            var path = Path.Combine(FileSystem.CacheDirectory, $"jobflow-applications-{DateTime.UtcNow:yyyyMMddHHmmss}.json");
-            await File.WriteAllTextAsync(path, json, Encoding.UTF8);
-
-            await Share.Default.ShareAsync(new ShareFileRequest
-            {
-                Title = "JobFlow applications export",
-                File = new ShareFile(path)
-            });
-            StatusLabel.Text = $"Exported {records.Count} application records (no tokens).";
+            await Clipboard.Default.SetTextAsync(json);
+            StatusLabel.Text = $"Copied {records.Count} application records to the clipboard (no tokens).";
+            await DisplayAlertAsync(
+                "Export ready",
+                $"{records.Count} application records were copied to the clipboard as JSON. Paste them into a file or note. Tokens are never included.",
+                "OK");
         }
-        catch (Exception ex)
+        catch
         {
-            await DisplayAlertAsync("Export failed", $"Could not export application records from this device. {ex.GetType().Name}", "OK");
+            await DisplayAlertAsync("Export failed", "Could not export application records from this device.", "OK");
         }
     }
 

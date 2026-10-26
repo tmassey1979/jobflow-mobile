@@ -22,7 +22,7 @@
                 <VerticalStackLayout Spacing="8">
                     <Label Text="Local data" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
                     <Label x:Name="LocalDataLabel" FontSize="13" TextColor="{StaticResource MutedInk}" />
-                    <Button Text="Export applications (JSON)" Clicked="OnExportClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
+                    <Button Text="Export applications (clipboard JSON)" Clicked="OnExportClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
                     <Button Text="Clear cached job feed" Clicked="OnClearCacheClicked" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="10" />
                     <Label Text="Export does not include GitHub tokens. Clearing the feed cache does not remove tracked applications." FontSize="11" TextColor="{StaticResource MutedInk}" />
                 </VerticalStackLayout>
