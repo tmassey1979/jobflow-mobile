@@ -20,6 +20,11 @@ public static class GitHubAccountStore
 
     // Legacy key from the temporary PAT paste flow — migrated on read, then removed.
     private const string LegacyTokenKey = "jobflow.github.readonly.token";
+    private const string PendingDeviceCodeKey = "jobflow.github.pending.device_code";
+    private const string PendingUserCodeKey = "jobflow.github.pending.user_code";
+    private const string PendingVerificationUriKey = "jobflow.github.pending.verification_uri";
+    private const string PendingIntervalKey = "jobflow.github.pending.interval";
+    private const string PendingExpiresAtKey = "jobflow.github.pending.expires_at";
 
     public static async Task<string?> GetAccessTokenAsync()
     {
@@ -53,6 +58,39 @@ public static class GitHubAccountStore
             throw new InvalidOperationException("Android Secure Storage did not retain the GitHub session. Please restart the app and try signing in again.");
     }
 
+    public sealed record PendingDeviceLogin(string DeviceCode, string UserCode, string VerificationUri, int IntervalSeconds, DateTimeOffset ExpiresAtUtc);
+
+    public static async Task SavePendingDeviceLoginAsync(PendingDeviceLogin pending)
+    {
+        await SecureStorage.Default.SetAsync(PendingDeviceCodeKey, pending.DeviceCode);
+        await SecureStorage.Default.SetAsync(PendingUserCodeKey, pending.UserCode);
+        await SecureStorage.Default.SetAsync(PendingVerificationUriKey, pending.VerificationUri);
+        await SecureStorage.Default.SetAsync(PendingIntervalKey, pending.IntervalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        await SecureStorage.Default.SetAsync(PendingExpiresAtKey, pending.ExpiresAtUtc.ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    public static async Task<PendingDeviceLogin?> GetPendingDeviceLoginAsync()
+    {
+        var code = await SecureStorage.Default.GetAsync(PendingDeviceCodeKey);
+        if (string.IsNullOrWhiteSpace(code)) return null;
+        var userCode = await SecureStorage.Default.GetAsync(PendingUserCodeKey) ?? "";
+        var uri = await SecureStorage.Default.GetAsync(PendingVerificationUriKey) ?? "https://github.com/login/device";
+        var intervalText = await SecureStorage.Default.GetAsync(PendingIntervalKey);
+        var expiresText = await SecureStorage.Default.GetAsync(PendingExpiresAtKey);
+        if (!int.TryParse(intervalText, out var interval)) interval = 5;
+        if (!long.TryParse(expiresText, out var expiresUnix)) return null;
+        return new PendingDeviceLogin(code, userCode, uri, interval, DateTimeOffset.FromUnixTimeSeconds(expiresUnix));
+    }
+
+    public static void ClearPendingDeviceLogin()
+    {
+        try { SecureStorage.Default.Remove(PendingDeviceCodeKey); } catch { }
+        try { SecureStorage.Default.Remove(PendingUserCodeKey); } catch { }
+        try { SecureStorage.Default.Remove(PendingVerificationUriKey); } catch { }
+        try { SecureStorage.Default.Remove(PendingIntervalKey); } catch { }
+        try { SecureStorage.Default.Remove(PendingExpiresAtKey); } catch { }
+    }
+
     public static async Task<(string Owner, string Name)> GetSelectedRepositoryAsync()
     {
         var owner = await TryGetAsync(OwnerKey);
@@ -83,6 +121,7 @@ public static class GitHubAccountStore
         try { SecureStorage.Default.Remove(LegacyTokenKey); } catch { }
         try { SecureStorage.Default.Remove(OwnerKey); } catch { }
         try { SecureStorage.Default.Remove(RepoKey); } catch { }
+        ClearPendingDeviceLogin();
         await Task.CompletedTask;
     }
 
