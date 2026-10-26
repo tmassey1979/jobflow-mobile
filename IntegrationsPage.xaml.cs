@@ -321,6 +321,11 @@ public partial class IntegrationsPage : ContentPage
         }
     }
 
+    private async void OnOpenCalendarClicked(object sender, EventArgs e)
+    {
+        await Shell.Current.GoToAsync("//calendar");
+    }
+
     private static string UserSafeMessage(Exception ex)
     {
         var text = ex.Message?.Trim();
