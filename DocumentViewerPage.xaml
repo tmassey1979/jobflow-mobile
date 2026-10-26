@@ -10,28 +10,29 @@
             <Label x:Name="StatusLabel" FontSize="12" TextColor="{StaticResource MutedInk}" IsVisible="False" />
         </VerticalStackLayout>
 
-        <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="6">
-            <Button x:Name="ViewTabButton" Grid.Column="0" Text="View" Clicked="OnViewTabClicked" CornerRadius="8" Padding="8,6" FontSize="13" />
-            <Button x:Name="EditTabButton" Grid.Column="1" Text="Edit" Clicked="OnEditTabClicked" CornerRadius="8" Padding="8,6" FontSize="13" />
+        <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="6">
+            <Button x:Name="ViewButton" Grid.Column="0" Text="Preview" Clicked="OnViewClicked" CornerRadius="8" Padding="8,6" FontSize="13" />
+            <Button x:Name="EditButton" Grid.Column="1" Text="Edit source" Clicked="OnEditClicked" CornerRadius="8" Padding="8,6" FontSize="13" />
+            <Button x:Name="CopyButton" Grid.Column="2" Text="Copy" Clicked="OnCopyClicked" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="8" Padding="8,6" FontSize="13" />
         </Grid>
 
         <Border Grid.Row="2" Stroke="#D9E0EB" StrokeShape="RoundRectangle 10" BackgroundColor="White" Padding="0">
             <Grid>
-                <ScrollView x:Name="ViewScroll">
-                    <Label x:Name="BodyLabel"
+                <ScrollView x:Name="PreviewScroll" IsVisible="True">
+                    <Label x:Name="PreviewLabel"
                            Margin="12"
                            FontSize="14"
                            TextColor="{StaticResource Ink}"
                            LineBreakMode="WordWrap" />
                 </ScrollView>
-                <Editor x:Name="BodyEditor"
+                <Editor x:Name="SourceEditor"
                         IsVisible="False"
-                        FontSize="14"
-                        AutoSize="TextChanges"
-                        TextColor="{StaticResource Ink}"
-                        BackgroundColor="White"
-                        Margin="8"
-                        Placeholder="Markdown content…" />
+                        FontFamily="monospace"
+                        FontSize="13"
+                        AutoSize="Disabled"
+                        VerticalOptions="Fill"
+                        HorizontalOptions="Fill"
+                        TextChanged="OnSourceChanged" />
             </Grid>
         </Border>
     </Grid>

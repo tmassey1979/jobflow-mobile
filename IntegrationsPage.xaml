@@ -5,37 +5,54 @@
              Title="Integrations"
              BackgroundColor="{StaticResource PageBackground}">
     <ScrollView>
-        <VerticalStackLayout Padding="16" Spacing="14">
-            <Label Text="Connections" FontSize="22" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
-            <Label Text="Sign in once. JobFlow only reads the data repository you choose and never submits applications for you." FontSize="13" TextColor="{StaticResource MutedInk}" />
+        <VerticalStackLayout Padding="20" Spacing="16">
+            <Grid ColumnDefinitions="44,*" ColumnSpacing="10">
+                <Image Grid.Column="0" Source="signal_mark.png" WidthRequest="40" HeightRequest="40" Aspect="AspectFit" VerticalOptions="Center" SemanticProperties.Description="JobFlow Signal Mark logo" />
+                <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                    <Label Text="Integrations" FontSize="28" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                    <Label Text="Connect the services JobFlow can read." FontSize="13" TextColor="{StaticResource MutedInk}" />
+                </VerticalStackLayout>
+            </Grid>
+            <Label Text="Sign in with GitHub in the browser, then choose which private data repository JobFlow may read. No token paste." FontSize="14" TextColor="{StaticResource MutedInk}" />
 
-            <!-- GitHub -->
-            <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="14" BackgroundColor="White">
+            <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="16" BackgroundColor="White">
                 <VerticalStackLayout Spacing="10">
-                    <Label Text="GitHub" FontAttributes="Bold" FontSize="16" TextColor="{StaticResource Ink}" />
-                    <Label x:Name="GitHubStateLabel" Text="Not signed in" FontSize="13" TextColor="{StaticResource Accent}" />
-                    <Label x:Name="GitHubDetailsLabel" FontSize="12" TextColor="{StaticResource MutedInk}" LineBreakMode="WordWrap" />
-                    <Label x:Name="DeviceCodeLabel" FontSize="22" FontAttributes="Bold" TextColor="{StaticResource Ink}" IsVisible="False" HorizontalTextAlignment="Center" />
-                    <Button x:Name="CopyDeviceCodeButton" Text="Copy code" Clicked="OnCopyDeviceCodeClicked" IsVisible="False" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="10">
+                        <Label Text="GitHub · Job data" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                        <Label x:Name="GitHubStateLabel" Grid.Column="1" Text="Not connected" FontSize="12" TextColor="{StaticResource MutedInk}" VerticalOptions="Center" />
+                        <Label Grid.Row="1" Grid.ColumnSpan="2" Text="Uses GitHub Device Login (browser). The app stores only the access token and the repository you select. No client secret is embedded." FontSize="12" TextColor="{StaticResource MutedInk}" />
+                    </Grid>
+
+                    <Label Text="GitHub sign-in is configured for this build. Tap below and approve the one-time device code in your browser." FontSize="12" TextColor="{StaticResource MutedInk}" />
+
                     <Button x:Name="SignInGitHubButton" Text="Sign in with GitHub" Clicked="OnSignInGitHubClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
                     <Button x:Name="ChooseRepoButton" Text="Choose data repository" Clicked="OnChooseRepoClicked" IsVisible="False" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
                     <Button x:Name="DisconnectGitHubButton" Text="Sign out of GitHub" Clicked="OnDisconnectGitHubClicked" IsVisible="False" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="10" />
+
+                    <Label x:Name="DeviceCodeLabel" FontSize="22" FontAttributes="Bold" TextColor="{StaticResource Accent}" IsVisible="False" HorizontalTextAlignment="Center" />
+                    <Button x:Name="CopyDeviceCodeButton" Text="Copy activation code" Clicked="OnCopyDeviceCodeClicked" IsVisible="False" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
+                    <Label x:Name="GitHubDetailsLabel" Text="Not signed in on this device." FontSize="12" TextColor="{StaticResource MutedInk}" />
+                    <Label Text="After sign-in, JobFlow only reads the repository you pick. It does not submit applications or write to GitHub." FontSize="12" TextColor="{StaticResource MutedInk}" />
                 </VerticalStackLayout>
             </Border>
 
-            <!-- Google Calendar -->
-            <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="14" BackgroundColor="White">
-                <VerticalStackLayout Spacing="10">
-                    <Label Text="Google Calendar" FontAttributes="Bold" FontSize="16" TextColor="{StaticResource Ink}" />
-                    <Label x:Name="CalendarStateLabel" Text="Not configured" FontSize="13" TextColor="{StaticResource Accent}" />
-                    <Label x:Name="CalendarDetailsLabel"
-                           Text="Read-only calendar access is planned so interview times can appear next to tracked applications. No events are created or modified without explicit confirmation."
-                           FontSize="12" TextColor="{StaticResource MutedInk}" LineBreakMode="WordWrap" />
-                    <Button x:Name="ConnectCalendarButton" Text="Connect Google Calendar" Clicked="OnConnectCalendarClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
+            <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="16" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Google Calendar" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                        <Label Grid.Column="1" Text="Not configured" FontSize="12" TextColor="{StaticResource MutedInk}" VerticalOptions="Center" />
+                    </Grid>
+                    <Label Text="Planned: official Google Android consent with calendar.readonly. JobFlow will never ask for your Google password and will not create or change events without an explicit confirmation." FontSize="12" TextColor="{StaticResource MutedInk}" />
+                    <Label Text="Next step: add an Android OAuth client ID in Google Cloud Console, enable the Calendar API, then wire the consent flow. Until then the Calendar tab is a layout placeholder." FontSize="12" TextColor="{StaticResource MutedInk}" />
+                    <Button Text="Open Calendar tab"
+                            Clicked="OnOpenCalendarClicked"
+                            BackgroundColor="#E9F0FF"
+                            TextColor="{StaticResource Accent}"
+                            CornerRadius="10" />
                 </VerticalStackLayout>
             </Border>
 
-            <Label Text="JobFlow stores tokens only in Android Secure Storage on this device." FontSize="11" TextColor="{StaticResource MutedInk}" />
+            <Label Text="Privacy: credentials stay in Android Secure Storage on this device. Signing out removes the GitHub session locally." FontSize="12" TextColor="{StaticResource MutedInk}" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>

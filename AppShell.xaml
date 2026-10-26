@@ -16,6 +16,10 @@
             Route="applications"
             ContentTemplate="{DataTemplate local:ApplicationTrackerPage}" />
         <ShellContent
+            Title="Calendar"
+            Route="calendar"
+            ContentTemplate="{DataTemplate local:CalendarPage}" />
+        <ShellContent
             Title="Integrations"
             Route="integrations"
             ContentTemplate="{DataTemplate local:IntegrationsPage}" />

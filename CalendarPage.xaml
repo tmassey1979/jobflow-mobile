@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="JobFlow.Mobile.CalendarPage"
+             Title="Calendar"
+             BackgroundColor="{StaticResource PageBackground}">
+    <Grid RowDefinitions="Auto,*" Padding="16" RowSpacing="12">
+        <VerticalStackLayout Spacing="8">
+            <Label Text="Calendar" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+            <Label x:Name="StatusLabel"
+                   Text="Google Calendar is not connected yet. Connect it from Integrations when ready."
+                   FontSize="13"
+                   TextColor="{StaticResource MutedInk}" />
+            <Button x:Name="RefreshButton"
+                    Text="Refresh events"
+                    Clicked="OnRefreshClicked"
+                    BackgroundColor="{StaticResource Accent}"
+                    TextColor="White"
+                    CornerRadius="10"
+                    IsEnabled="False" />
+        </VerticalStackLayout>
+
+        <Border Grid.Row="1" Stroke="#D9E0EB" StrokeShape="RoundRectangle 12" BackgroundColor="White" Padding="16">
+            <VerticalStackLayout Spacing="12" VerticalOptions="Center">
+                <Label Text="Read-only calendar"
+                       FontSize="16"
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource Ink}"
+                       HorizontalTextAlignment="Center" />
+                <Label x:Name="DetailLabel"
+                       Text="JobFlow will show interview and follow-up events from your selected Google calendars once Google OAuth is configured. Until then this tab is a placeholder so navigation and layout are ready.&#10;&#10;No calendar writes will ever happen without an explicit confirmation."
+                       FontSize="13"
+                       TextColor="{StaticResource MutedInk}"
+                       HorizontalTextAlignment="Center" />
+                <CollectionView x:Name="EventsCollection" IsVisible="False">
+                    <CollectionView.EmptyView>
+                        <Label Text="No upcoming events"
+                               HorizontalTextAlignment="Center"
+                               TextColor="{StaticResource MutedInk}"
+                               Margin="0,24" />
+                    </CollectionView.EmptyView>
+                </CollectionView>
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+</ContentPage>
