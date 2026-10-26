@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 using JobFlow.Mobile.Models;
 using JobFlow.Mobile.Services;
 
@@ -100,7 +99,6 @@ public partial class ApplicationTrackerPage : ContentPage
                 || record.Status.Contains(normalized, StringComparison.OrdinalIgnoreCase));
         }
 
-        // Overdue first, then due soon, then recently updated.
         var filtered = source
             .OrderByDescending(r => r.IsFollowUpOverdue)
             .ThenByDescending(r => r.IsFollowUpDueSoon)

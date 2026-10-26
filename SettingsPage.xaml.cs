@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json;
 using JobFlow.Mobile.Services;
+using Microsoft.Maui.ApplicationModel.DataTransfer;
+using Microsoft.Maui.Storage;
 
 namespace JobFlow.Mobile;
 
@@ -95,12 +97,11 @@ public partial class SettingsPage : ContentPage
                 Title = "JobFlow applications export",
                 File = new ShareFile(path)
             });
-            StatusLabel.Text = $"Exported {records.Count} application records (no tokens)."
-            ;
+            StatusLabel.Text = $"Exported {records.Count} application records (no tokens).";
         }
-        catch
+        catch (Exception ex)
         {
-            await DisplayAlertAsync("Export failed", "Could not export application records from this device.", "OK");
+            await DisplayAlertAsync("Export failed", $"Could not export application records from this device. {ex.GetType().Name}", "OK");
         }
     }
 
