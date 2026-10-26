@@ -39,10 +39,10 @@ public partial class IntegrationsPage : ContentPage
             ChooseRepoButton.IsVisible = true;
             DisconnectGitHubButton.IsVisible = true;
         }
-        catch
+        catch (Exception ex)
         {
             GitHubStateLabel.Text = "Storage unavailable";
-            GitHubDetailsLabel.Text = "Android Secure Storage could not be accessed.";
+            GitHubDetailsLabel.Text = $"Android Secure Storage error: {ex.GetType().Name}. Try restarting the app; if it continues, clear app storage only after checking whether you need to preserve local data.";
         }
     }
 
@@ -107,14 +107,14 @@ public partial class IntegrationsPage : ContentPage
             DeviceCodeLabel.IsVisible = false;
             CopyDeviceCodeButton.IsVisible = false;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             _gitHubConnection.MarkFailed("Sign-in failed.");
             GitHubStateLabel.Text = "Sign-in failed";
-            GitHubDetailsLabel.Text = "GitHub sign-in did not complete. Check that Device Flow is enabled on the OAuth App and try again.";
+            GitHubDetailsLabel.Text = $"Sign-in or session save failed ({ex.GetType().Name}). No access token is shown here. Try again; if this repeats, report the error type.";
             DeviceCodeLabel.IsVisible = false;
             CopyDeviceCodeButton.IsVisible = false;
-            await DisplayAlertAsync("Couldn't sign in", "GitHub login failed. Confirm the OAuth App has Device Flow enabled and try again.", "OK");
+            await DisplayAlertAsync("Couldn't complete GitHub sign-in", $"GitHub approval or secure session storage failed ({ex.GetType().Name}). No token was displayed. Try again; if it repeats, tell me this error type.", "OK");
         }
         finally
         {
