@@ -16,6 +16,11 @@
             </Grid>
             <Label Text="Nothing is submitted or sent for you." FontSize="12" TextColor="{StaticResource MutedInk}" />
             <Label x:Name="SummaryLabel" Text="No applications tracked yet." FontSize="13" FontAttributes="Bold" TextColor="{StaticResource Accent}" />
+            <HorizontalStackLayout Spacing="8">
+                <Button x:Name="FilterAllButton" Text="All" Clicked="OnFilterAllClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="8" Padding="12,6" />
+                <Button x:Name="FilterOverdueButton" Text="Overdue" Clicked="OnFilterOverdueClicked" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="8" Padding="12,6" />
+                <Button x:Name="FilterDueSoonButton" Text="Due soon" Clicked="OnFilterDueSoonClicked" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="8" Padding="12,6" />
+            </HorizontalStackLayout>
             <SearchBar x:Name="SearchEntry" Placeholder="Search tracked jobs or companies" TextChanged="OnSearchTextChanged" BackgroundColor="White" />
         </VerticalStackLayout>
         <CollectionView x:Name="ApplicationsCollection" Grid.Row="1" SelectionMode="None">
