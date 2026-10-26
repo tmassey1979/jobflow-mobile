@@ -7,6 +7,7 @@ namespace JobFlow.Mobile.Services;
 public static class GitHubAccountStore
 {
     public const string TokenKey = "jobflow.github.access.token";
+    public const string LoginKey = "jobflow.github.user.login";
     public const string OwnerKey = "jobflow.github.repo.owner";
     public const string RepoKey = "jobflow.github.repo.name";
     public const string ClientIdKey = "jobflow.github.oauth.client_id";
@@ -18,7 +19,6 @@ public static class GitHubAccountStore
     /// </summary>
     public const string DefaultClientId = "Ov23liEzPPsOeMKTOQHn";
 
-    // Legacy key from the temporary PAT paste flow — migrated on read, then removed.
     private const string LegacyTokenKey = "jobflow.github.readonly.token";
     private const string PendingDeviceCodeKey = "jobflow.github.pending.device_code";
     private const string PendingUserCodeKey = "jobflow.github.pending.user_code";
@@ -28,8 +28,6 @@ public static class GitHubAccountStore
 
     public static async Task<string?> GetAccessTokenAsync()
     {
-        // Do not hide SecureStorage failures as a normal signed-out state. The UI needs
-        // to distinguish a missing token from storage that cannot be read.
         var token = await SecureStorage.Default.GetAsync(TokenKey);
         if (!string.IsNullOrWhiteSpace(token))
             return token;
@@ -51,11 +49,22 @@ public static class GitHubAccountStore
         var normalized = token.Trim();
         await SecureStorage.Default.SetAsync(TokenKey, normalized);
 
-        // Verify persistence immediately so a successful OAuth screen cannot be mistaken
-        // for a saved session when Android SecureStorage did not retain the value.
         var saved = await SecureStorage.Default.GetAsync(TokenKey);
         if (!string.Equals(saved, normalized, StringComparison.Ordinal))
             throw new InvalidOperationException("Android Secure Storage did not retain the GitHub session. Please restart the app and try signing in again.");
+    }
+
+    public static async Task SetLoginAsync(string login)
+    {
+        if (string.IsNullOrWhiteSpace(login))
+            return;
+        await SecureStorage.Default.SetAsync(LoginKey, login.Trim());
+    }
+
+    public static async Task<string?> GetLoginAsync()
+    {
+        try { return await SecureStorage.Default.GetAsync(LoginKey); }
+        catch { return null; }
     }
 
     public sealed record PendingDeviceLogin(string DeviceCode, string UserCode, string VerificationUri, int IntervalSeconds, DateTimeOffset ExpiresAtUtc);
@@ -118,6 +127,7 @@ public static class GitHubAccountStore
     public static async Task ClearSessionAsync()
     {
         try { SecureStorage.Default.Remove(TokenKey); } catch { }
+        try { SecureStorage.Default.Remove(LoginKey); } catch { }
         try { SecureStorage.Default.Remove(LegacyTokenKey); } catch { }
         try { SecureStorage.Default.Remove(OwnerKey); } catch { }
         try { SecureStorage.Default.Remove(RepoKey); } catch { }
