@@ -51,5 +51,15 @@ public sealed class FeedCacheService
         return feed;
     }
 
+    /// <summary>
+    /// Removes the cached feed envelope only. Does not remove application tracker records or the GitHub session.
+    /// </summary>
+    public async Task ClearCachedFeedAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await EnsureInitializedAsync();
+        await _database.DeleteAsync<CachedFeedRecord>("latest");
+    }
+
     private Task EnsureInitializedAsync() => _localDatabase.InitializeAsync();
 }

@@ -8,6 +8,7 @@ public partial class ApplicationTrackerPage : ContentPage
 {
     private readonly ApplicationTrackerService _tracker = new();
     private IReadOnlyList<ApplicationRecord> _allRecords = Array.Empty<ApplicationRecord>();
+    private FollowUpFilter _filter = FollowUpFilter.All;
 
     public ApplicationTrackerPage()
     {
@@ -35,29 +36,94 @@ public partial class ApplicationTrackerPage : ContentPage
 
     private void OnSearchTextChanged(object sender, TextChangedEventArgs e) => ApplySearch(e.NewTextValue);
 
+    private void OnFilterAllClicked(object sender, EventArgs e)
+    {
+        _filter = FollowUpFilter.All;
+        UpdateFilterButtons();
+        ApplySearch(SearchEntry.Text);
+    }
+
+    private void OnFilterOverdueClicked(object sender, EventArgs e)
+    {
+        _filter = FollowUpFilter.Overdue;
+        UpdateFilterButtons();
+        ApplySearch(SearchEntry.Text);
+    }
+
+    private void OnFilterDueSoonClicked(object sender, EventArgs e)
+    {
+        _filter = FollowUpFilter.DueSoon;
+        UpdateFilterButtons();
+        ApplySearch(SearchEntry.Text);
+    }
+
+    private void UpdateFilterButtons()
+    {
+        StyleFilterButton(FilterAllButton, _filter == FollowUpFilter.All);
+        StyleFilterButton(FilterOverdueButton, _filter == FollowUpFilter.Overdue);
+        StyleFilterButton(FilterDueSoonButton, _filter == FollowUpFilter.DueSoon);
+    }
+
+    private static void StyleFilterButton(Button button, bool selected)
+    {
+        if (selected)
+        {
+            button.BackgroundColor = Color.FromArgb("#2563EB");
+            button.TextColor = Colors.White;
+        }
+        else
+        {
+            button.BackgroundColor = Color.FromArgb("#E9EDF4");
+            button.TextColor = Color.FromArgb("#1A1A1A");
+        }
+    }
+
     private void ApplySearch(string? query)
     {
         var normalized = query?.Trim();
-        var filtered = string.IsNullOrEmpty(normalized)
-            ? _allRecords
-            : _allRecords.Where(record =>
-                    record.Title.Contains(normalized, StringComparison.OrdinalIgnoreCase)
-                    || record.Company.Contains(normalized, StringComparison.OrdinalIgnoreCase)
-                    || (record.Notes?.Contains(normalized, StringComparison.OrdinalIgnoreCase) ?? false)
-                    || record.Status.Contains(normalized, StringComparison.OrdinalIgnoreCase))
-                .ToList();
+        IEnumerable<ApplicationRecord> source = _allRecords;
+
+        source = _filter switch
+        {
+            FollowUpFilter.Overdue => source.Where(r => r.IsFollowUpOverdue),
+            FollowUpFilter.DueSoon => source.Where(r => r.IsFollowUpDueSoon),
+            _ => source
+        };
+
+        if (!string.IsNullOrEmpty(normalized))
+        {
+            source = source.Where(record =>
+                record.Title.Contains(normalized, StringComparison.OrdinalIgnoreCase)
+                || record.Company.Contains(normalized, StringComparison.OrdinalIgnoreCase)
+                || (record.Notes?.Contains(normalized, StringComparison.OrdinalIgnoreCase) ?? false)
+                || record.Status.Contains(normalized, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var filtered = source
+            .OrderByDescending(r => r.IsFollowUpOverdue)
+            .ThenByDescending(r => r.IsFollowUpDueSoon)
+            .ThenBy(r => r.FollowUpAtUtc ?? DateTime.MaxValue)
+            .ThenByDescending(r => r.UpdatedAtUtc)
+            .ToList();
 
         ApplicationsCollection.ItemsSource = filtered;
         var applied = _allRecords.Count(record => record.Status == ApplicationStages.Applied);
+        var overdue = _allRecords.Count(r => r.IsFollowUpOverdue);
+        var dueSoon = _allRecords.Count(r => r.IsFollowUpDueSoon);
+
         SummaryLabel.Text = string.IsNullOrEmpty(normalized)
-            ? $"{_allRecords.Count} tracked · {applied} marked applied · saved locally"
-            : $"{filtered.Count} of {_allRecords.Count} tracked roles match “{normalized}”";
+            ? $"{_allRecords.Count} tracked · {overdue} overdue · {dueSoon} due soon · {applied} applied"
+            : $"{filtered.Count} of {_allRecords.Count} match “{normalized}”";
 
         var noRecords = _allRecords.Count == 0;
         EmptyTitleLabel.Text = noRecords ? "Your tracker starts here" : "No matching roles";
         EmptyDescriptionLabel.Text = noRecords
             ? "Use Track application on any job card to add it to your pipeline."
-            : "Try another title, company, stage, or note.";
+            : _filter == FollowUpFilter.Overdue
+                ? "No overdue follow-ups right now."
+                : _filter == FollowUpFilter.DueSoon
+                    ? "Nothing due in the next 3 days."
+                    : "Try another title, company, stage, or note.";
     }
 
     private async void OnChooseStageClicked(object sender, EventArgs e)
@@ -108,7 +174,7 @@ public partial class ApplicationTrackerPage : ContentPage
             var currentDate = current.FollowUpAtUtc?.ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             var entered = await DisplayPromptAsync(
                 "Set follow-up date",
-                "Enter a date as YYYY-MM-DD. This is saved on this device only; it does not create a notification or calendar event.",
+                "Enter a date as YYYY-MM-DD. Saved on this device only; does not create a system notification yet.",
                 "Save",
                 "Cancel",
                 "YYYY-MM-DD",
@@ -205,5 +271,12 @@ public partial class ApplicationTrackerPage : ContentPage
         {
             await DisplayAlertAsync("Application link unavailable", "This tracked job does not have a valid HTTPS application URL.", "OK");
         }
+    }
+
+    private enum FollowUpFilter
+    {
+        All,
+        Overdue,
+        DueSoon
     }
 }

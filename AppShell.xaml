@@ -19,5 +19,9 @@
             Title="Integrations"
             Route="integrations"
             ContentTemplate="{DataTemplate local:IntegrationsPage}" />
+        <ShellContent
+            Title="Settings"
+            Route="settings"
+            ContentTemplate="{DataTemplate local:SettingsPage}" />
     </TabBar>
 </Shell>

@@ -30,7 +30,29 @@ public sealed class ApplicationRecord
     public DateTime? FollowUpAtUtc { get; set; }
 
     [Ignore]
-    public string FollowUpDisplay => FollowUpAtUtc is DateTime due
-        ? $"Follow-up: {due.ToLocalTime():d}"
-        : "No follow-up date set";
+    public bool IsFollowUpOverdue =>
+        FollowUpAtUtc is DateTime due && due.Date < DateTime.UtcNow.Date;
+
+    [Ignore]
+    public bool IsFollowUpDueSoon =>
+        FollowUpAtUtc is DateTime due
+        && due.Date >= DateTime.UtcNow.Date
+        && due.Date <= DateTime.UtcNow.Date.AddDays(3);
+
+    [Ignore]
+    public string FollowUpDisplay
+    {
+        get
+        {
+            if (FollowUpAtUtc is not DateTime due)
+                return "No follow-up date set";
+
+            var local = due.ToLocalTime();
+            if (IsFollowUpOverdue)
+                return $"Overdue follow-up: {local:d}";
+            if (IsFollowUpDueSoon)
+                return $"Follow-up due soon: {local:d}";
+            return $"Follow-up: {local:d}";
+        }
+    }
 }

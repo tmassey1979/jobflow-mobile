@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="JobFlow.Mobile.SettingsPage"
+             Title="Settings"
+             BackgroundColor="{StaticResource PageBackground}">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+            <Label Text="Settings" FontSize="28" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+            <Label Text="Control local data and your GitHub session on this device." FontSize="14" TextColor="{StaticResource MutedInk}" />
+
+            <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="16" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="GitHub session" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                    <Label x:Name="GitHubStatusLabel" FontSize="13" TextColor="{StaticResource MutedInk}" />
+                    <Button Text="Open Integrations" Clicked="OnOpenIntegrationsClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
+                    <Button Text="Sign out of GitHub" Clicked="OnSignOutClicked" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="10" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="16" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Local data" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                    <Label x:Name="LocalDataLabel" FontSize="13" TextColor="{StaticResource MutedInk}" />
+                    <Button Text="Export applications (clipboard JSON)" Clicked="OnExportClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
+                    <Button Text="Clear cached job feed" Clicked="OnClearCacheClicked" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="10" />
+                    <Label Text="Export does not include GitHub tokens. Clearing the feed cache does not remove tracked applications." FontSize="11" TextColor="{StaticResource MutedInk}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Label x:Name="StatusLabel" FontSize="12" TextColor="{StaticResource MutedInk}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
