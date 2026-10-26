@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="JobFlow.Mobile.JobDetailPage"
+             BackgroundColor="{StaticResource PageBackground}">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="14">
+            <Label x:Name="TitleLabel" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource Ink}" LineBreakMode="WordWrap" />
+            <Label x:Name="CompanyLabel" FontSize="16" TextColor="{StaticResource Accent}" />
+
+            <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="14" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Compensation" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                    <Label x:Name="SalaryLabel" FontSize="14" TextColor="{StaticResource Ink}" />
+                    <Label x:Name="PayTypeLabel" FontSize="12" TextColor="{StaticResource MutedInk}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="14" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Listing facts" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                    <Label x:Name="RemoteLabel" FontSize="13" TextColor="{StaticResource Ink}" />
+                    <Label x:Name="PostingLabel" FontSize="13" TextColor="{StaticResource Ink}" />
+                    <Label x:Name="VerifiedLabel" FontSize="13" TextColor="{StaticResource Ink}" />
+                    <Label x:Name="MatchLabel" FontSize="13" TextColor="{StaticResource Ink}" />
+                    <Label x:Name="JobIdLabel" FontSize="12" TextColor="{StaticResource MutedInk}" LineBreakMode="MiddleTruncation" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="14" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Source paths (from feed)" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                    <Label x:Name="MetadataPathLabel" FontSize="12" TextColor="{StaticResource MutedInk}" LineBreakMode="WordWrap" />
+                    <Label x:Name="ResumePathLabel" FontSize="12" TextColor="{StaticResource MutedInk}" LineBreakMode="WordWrap" />
+                    <Label x:Name="CoverPathLabel" FontSize="12" TextColor="{StaticResource MutedInk}" LineBreakMode="WordWrap" />
+                    <Label x:Name="TrackingPathLabel" FontSize="12" TextColor="{StaticResource MutedInk}" LineBreakMode="WordWrap" />
+                    <Label Text="Missing values are shown as unknown — JobFlow does not invent sources." FontSize="11" TextColor="{StaticResource MutedInk}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Label x:Name="ApplicationUrlLabel" FontSize="12" TextColor="{StaticResource MutedInk}" LineBreakMode="WordWrap" />
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Button Grid.Column="0" x:Name="ResumeButton" Text="Resume" Clicked="OnResumeClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
+                <Button Grid.Column="1" x:Name="CoverButton" Text="Cover letter" Clicked="OnCoverClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
+            </Grid>
+            <Button x:Name="TrackButton" Text="Track application" Clicked="OnTrackClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
+            <Button x:Name="OpenAppButton" Text="Open application link" Clicked="OnOpenApplicationClicked" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="10" />
+            <Label x:Name="StatusLabel" FontSize="12" TextColor="{StaticResource MutedInk}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

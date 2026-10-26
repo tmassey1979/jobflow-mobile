@@ -8,6 +8,7 @@ public partial class MainPage : ContentPage
     private readonly GitHubDataService _dataService = new();
     private readonly FeedCacheService _cacheService = new();
     private readonly ApplicationTrackerService _applicationTracker = new();
+    private IReadOnlyList<JobFeedItem> _allJobs = [];
 
     public MainPage()
     {
@@ -45,7 +46,7 @@ public partial class MainPage : ContentPage
             var cached = await _cacheService.LoadLatestAsync();
             if (cached is null) return;
 
-            JobsCollection.ItemsSource = cached.Jobs;
+            ApplyJobs(cached.Jobs);
             FeedDateLabel.Text = $"Feed generated: {cached.GeneratedAt ?? "date not supplied"}";
             StatusLabel.Text = $"Showing {cached.Jobs.Count} cached jobs from {cached.SourcePath ?? "the last successful sync"}. Pull a fresh feed when online.";
         }
@@ -73,7 +74,7 @@ public partial class MainPage : ContentPage
         {
             var (owner, repo) = await GitHubAccountStore.GetSelectedRepositoryAsync();
             var feed = await _dataService.LoadLatestFeedAsync(token, owner, repo);
-            JobsCollection.ItemsSource = feed.Jobs;
+            ApplyJobs(feed.Jobs);
             FeedDateLabel.Text = $"Feed generated: {feed.GeneratedAt ?? "date not supplied"}";
             StatusLabel.Text = $"{feed.Jobs.Count} unique jobs from {owner}/{repo}. Feed data is read-only.";
 
@@ -85,7 +86,7 @@ public partial class MainPage : ContentPage
             var cached = await TryLoadCachedFeedAsync();
             if (cached is not null)
             {
-                JobsCollection.ItemsSource = cached.Jobs;
+                ApplyJobs(cached.Jobs);
                 FeedDateLabel.Text = $"Feed generated: {cached.GeneratedAt ?? "date not supplied"}";
                 StatusLabel.Text = $"Offline: showing {cached.Jobs.Count} cached jobs. GitHub refresh failed.";
             }
@@ -100,10 +101,49 @@ public partial class MainPage : ContentPage
         }
     }
 
+    private void ApplyJobs(IReadOnlyList<JobFeedItem> jobs)
+    {
+        _allJobs = jobs.ToList();
+        ApplyFilter(SearchEntry.Text);
+    }
+
+    private void OnSearchTextChanged(object? sender, TextChangedEventArgs e) => ApplyFilter(e.NewTextValue);
+
+    private void ApplyFilter(string? query)
+    {
+        if (_allJobs.Count == 0)
+        {
+            JobsCollection.ItemsSource = null;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            JobsCollection.ItemsSource = _allJobs;
+            return;
+        }
+
+        var term = query.Trim();
+        var filtered = _allJobs
+            .Where(job =>
+                (job.Title?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (job.Company?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (job.JobId?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false))
+            .ToList();
+        JobsCollection.ItemsSource = filtered;
+        StatusLabel.Text = $"Showing {filtered.Count} of {_allJobs.Count} jobs matching \"{term}\".";
+    }
+
     private async Task<DailyFeed?> TryLoadCachedFeedAsync()
     {
         try { return await _cacheService.LoadLatestAsync(); }
         catch { return null; }
+    }
+
+    private async void OnJobDetailsClicked(object sender, EventArgs e)
+    {
+        if (sender is not Button { BindingContext: JobFeedItem job }) return;
+        await Navigation.PushAsync(new JobDetailPage(job));
     }
 
     private async void OnViewResumeClicked(object sender, EventArgs e)

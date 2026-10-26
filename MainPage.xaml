@@ -19,6 +19,7 @@
                     <Label Text="Private job feed" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
                     <Label x:Name="ConnectionSummaryLabel" Text="Sign in with GitHub on the Integrations tab, then choose your data repository." FontSize="12" TextColor="{StaticResource MutedInk}" />
                     <Button x:Name="LoadButton" Text="Load latest jobs" Clicked="OnLoadJobsClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
+                    <Entry x:Name="SearchEntry" Placeholder="Filter by title or company" TextChanged="OnSearchTextChanged" ClearButtonVisibility="WhileEditing" />
                 </VerticalStackLayout>
             </Border>
             <Label x:Name="StatusLabel" Text="Sign in to load the latest verified feed." FontSize="13" TextColor="{StaticResource MutedInk}" />
@@ -47,6 +48,7 @@
                             <Label Text="{Binding SalaryLabel}" FontSize="13" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
                             <Label Text="{Binding RemoteScope}" FontSize="12" TextColor="{StaticResource MutedInk}" />
                             <Label Text="{Binding MatchScore, StringFormat='Match score: {0}%'}" FontSize="12" TextColor="{StaticResource MutedInk}" />
+                            <Button Text="Details" Clicked="OnJobDetailsClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="8" />
                             <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                                 <Button Grid.Column="0" Text="Resume" Clicked="OnViewResumeClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
                                 <Button Grid.Column="1" Text="Cover letter" Clicked="OnViewCoverLetterClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
