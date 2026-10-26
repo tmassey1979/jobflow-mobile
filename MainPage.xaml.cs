@@ -11,6 +11,7 @@ public partial class MainPage : ContentPage
     private readonly OfflineJobStore _offlineJobStore = new();
     private readonly ApplicationTrackerService _applicationTracker = new();
     private IReadOnlyList<JobFeedItem> _allJobs = [];
+    private HashSet<string> _trackedJobIds = new(StringComparer.OrdinalIgnoreCase);
     private bool _isRefreshing;
 
     public MainPage()
@@ -58,14 +59,30 @@ public partial class MainPage : ContentPage
         }
     }
 
+    private async Task LoadTrackedIdsAsync()
+    {
+        try
+        {
+            var tracked = await _applicationTracker.GetAllAsync();
+            _trackedJobIds = tracked
+                .Select(r => r.JobId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            _trackedJobIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
     private async Task LoadFromOfflineStoreAsync()
     {
         try
         {
+            await LoadTrackedIdsAsync();
             var records = await _offlineJobStore.GetAllAsync();
             if (records.Count == 0)
             {
-                // Fall back to the single latest cached feed envelope if the store is empty.
                 var cached = await _cacheService.LoadLatestAsync();
                 if (cached is not null)
                 {
@@ -134,7 +151,6 @@ public partial class MainPage : ContentPage
 
             var feed = await _dataService.LoadAllFeedsAsync(token, owner, repo, progress);
 
-            // Persist the combined feed and upsert into the offline job store.
             try
             {
                 await _cacheService.SaveLatestAsync(feed);
@@ -144,6 +160,7 @@ public partial class MainPage : ContentPage
                 // Still show the jobs even if cache write fails.
             }
 
+            await LoadTrackedIdsAsync();
             ApplyJobs(feed.Jobs);
             FeedDateLabel.Text = $"Imported {feed.Jobs.Count} unique jobs · {feed.SourcePath}";
             StatusLabel.Text = $"{feed.Jobs.Count} unique jobs from {owner}/{repo}. Pull down anytime to refresh all feeds.";
@@ -179,38 +196,47 @@ public partial class MainPage : ContentPage
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(query))
+        IEnumerable<JobFeedItem> source = _allJobs;
+        if (!string.IsNullOrWhiteSpace(query))
         {
-            JobsCollection.ItemsSource = _allJobs;
-            return;
-        }
-
-        var term = query.Trim();
-        var filtered = _allJobs
-            .Where(job =>
+            var term = query.Trim();
+            source = _allJobs.Where(job =>
                 (job.Title?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
                 || (job.Company?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
-                || (job.JobId?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false))
+                || (job.JobId?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        var items = source
+            .Select(job => new JobListItem
+            {
+                Job = job,
+                IsTracked = _trackedJobIds.Contains(job.JobId)
+            })
             .ToList();
-        JobsCollection.ItemsSource = filtered;
-        StatusLabel.Text = $"Showing {filtered.Count} of {_allJobs.Count} jobs matching \"{term}\".";
+
+        JobsCollection.ItemsSource = items;
+
+        if (!string.IsNullOrWhiteSpace(query))
+            StatusLabel.Text = $"Showing {items.Count} of {_allJobs.Count} jobs matching \"{query.Trim()}\".";
     }
 
     private async void OnJobDetailsClicked(object sender, EventArgs e)
     {
-        if (sender is not Button { BindingContext: JobFeedItem job }) return;
-        await Navigation.PushAsync(new JobDetailPage(job));
+        if (sender is not Button { BindingContext: JobListItem item }) return;
+        await Navigation.PushAsync(new JobDetailPage(item.Job));
     }
 
     private async void OnTrackApplicationClicked(object sender, EventArgs e)
     {
-        if (sender is not Button { BindingContext: JobFeedItem job }) return;
+        if (sender is not Button { BindingContext: JobListItem item }) return;
         try
         {
-            var record = await _applicationTracker.TrackAsync(job);
+            var record = await _applicationTracker.TrackAsync(item.Job);
+            _trackedJobIds.Add(record.JobId);
+            ApplyFilter(SearchEntry.Text);
             await DisplayAlertAsync(
-                "Added to tracker",
-                $"{record.Title} at {record.Company} is now in your Application Tracker (stage: {record.Status}). Open the Tracker tab to update stage, notes, or follow-up.",
+                "Moved to Applications",
+                $"{record.Title} at {record.Company} is in your Application Tracker (stage: {record.Status}). Open the Applications tab to set stage, notes, or follow-up.",
                 "OK");
         }
         catch
