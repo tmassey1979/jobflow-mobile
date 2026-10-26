@@ -130,6 +130,12 @@ public partial class IntegrationsPage : ContentPage
             GitHubDetailsLabel.Text =
                 $"Enter code {authorization.UserCode} at {authorization.VerificationUri}, then approve access. JobFlow waits here automatically.";
 
+            // Save the short-lived device authorization BEFORE opening the browser.
+            // Android may reclaim this activity while the user approves in GitHub.
+            await GitHubAccountStore.SavePendingDeviceLoginAsync(new GitHubAccountStore.PendingDeviceLogin(
+                authorization.DeviceCode, authorization.UserCode, authorization.VerificationUri,
+                authorization.IntervalSeconds, DateTimeOffset.UtcNow.AddSeconds(authorization.ExpiresInSeconds)));
+
             try
             {
                 await Launcher.Default.OpenAsync(authorization.VerificationUri);
@@ -140,10 +146,6 @@ public partial class IntegrationsPage : ContentPage
             }
 
             var progress = new Progress<string>(message => GitHubDetailsLabel.Text = message);
-            await GitHubAccountStore.SavePendingDeviceLoginAsync(new GitHubAccountStore.PendingDeviceLogin(
-                authorization.DeviceCode, authorization.UserCode, authorization.VerificationUri,
-                authorization.IntervalSeconds, DateTimeOffset.UtcNow.AddSeconds(authorization.ExpiresInSeconds)));
-
             var accessToken = await _authService.WaitForAccessTokenAsync(clientId, authorization, progress, cancellation);
             await GitHubAccountStore.SetAccessTokenAsync(accessToken);
             GitHubAccountStore.ClearPendingDeviceLogin();
