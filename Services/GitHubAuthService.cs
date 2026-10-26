@@ -1,7 +1,6 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Web;
 
 namespace JobFlow.Mobile.Services;
 
@@ -59,7 +58,7 @@ public sealed class GitHubAuthService
             var description = GetField(fields, "error_description") ?? GetField(fields, "error_uri");
             if (string.Equals(error, "unauthorized_client", StringComparison.OrdinalIgnoreCase)
                 || body.Contains("device flow", StringComparison.OrdinalIgnoreCase)
-                || body.Contains("device_code", StringComparison.OrdinalIgnoreCase) && !fields.ContainsKey("device_code"))
+                || (body.Contains("device_code", StringComparison.OrdinalIgnoreCase) && !fields.ContainsKey("device_code")))
             {
                 throw new InvalidOperationException(
                     "GitHub rejected device login. On github.com/settings/developers open your OAuth App and enable Device Flow, then try again.");
