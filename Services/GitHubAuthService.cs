@@ -25,7 +25,6 @@ public sealed class GitHubAuthService
     {
         var client = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
         client.DefaultRequestHeaders.UserAgent.ParseAdd("JobFlow-Mobile/0.1");
-        // Prefer JSON, but token endpoints still sometimes return form-urlencoded.
         client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
         return client;
     }
@@ -76,7 +75,6 @@ public sealed class GitHubAuthService
             throw new InvalidOperationException("GitHub did not return a device code. Confirm Device Flow is enabled on the OAuth App.");
 
         var verificationUri = GetField(fields, "verification_uri") ?? "https://github.com/login/device";
-        // Prefill the code when opening the browser (GitHub accepts user_code query).
         var openUri = verificationUri.Contains('?', StringComparison.Ordinal)
             ? verificationUri
             : $"{verificationUri.TrimEnd('/')}?user_code={Uri.EscapeDataString(userCode)}";
@@ -100,7 +98,6 @@ public sealed class GitHubAuthService
     {
         var deadline = DateTime.UtcNow.AddSeconds(authorization.ExpiresInSeconds);
         var interval = TimeSpan.FromSeconds(Math.Max(5, authorization.IntervalSeconds));
-        // First poll quickly so approval is detected soon after the user finishes in the browser.
         var nextDelay = TimeSpan.FromSeconds(2);
 
         while (DateTime.UtcNow < deadline)
@@ -129,7 +126,14 @@ public sealed class GitHubAuthService
 
             var accessToken = GetField(fields, "access_token");
             if (!string.IsNullOrWhiteSpace(accessToken))
+            {
+                // Never trust a token string alone — prove it works.
+                status?.Report("Verifying session with GitHub…");
+                var profile = await GetAuthenticatedUserAsync(accessToken, cancellationToken);
+                if (profile is null || string.IsNullOrWhiteSpace(profile.Login))
+                    throw new InvalidOperationException("GitHub returned a token that could not load your profile. Sign in again.");
                 return accessToken;
+            }
 
             var error = GetField(fields, "error") ?? string.Empty;
             if (string.Equals(error, "authorization_pending", StringComparison.OrdinalIgnoreCase)
@@ -166,10 +170,45 @@ public sealed class GitHubAuthService
         throw new InvalidOperationException("Timed out waiting for GitHub sign-in. Tap Sign in with GitHub to start again.");
     }
 
+    /// <summary>
+    /// Proves a token is real by calling GET /user. Returns null if unauthorized or network failure.
+    /// </summary>
+    public async Task<GitHubUserProfile?> GetAuthenticatedUserAsync(string accessToken, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(accessToken))
+            return null;
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "https://api.github.com/user");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken.Trim());
+        request.Headers.UserAgent.ParseAdd("JobFlow-Mobile/0.1");
+        request.Headers.Accept.ParseAdd("application/vnd.github+json");
+        request.Headers.Add("X-GitHub-Api-Version", "2022-11-28");
+
+        using var response = await Http.SendAsync(request, cancellationToken);
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized
+            || response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            return null;
+
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException($"Could not verify GitHub session ({(int)response.StatusCode}).");
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        var dto = JsonSerializer.Deserialize<UserDto>(json, JsonOptions);
+        if (dto is null || string.IsNullOrWhiteSpace(dto.Login))
+            return null;
+
+        return new GitHubUserProfile(dto.Login, dto.Name);
+    }
+
     public async Task<IReadOnlyList<GitHubRepositoryRef>> ListRepositoriesAsync(string accessToken, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(accessToken))
             throw new ArgumentException("An access token is required.", nameof(accessToken));
+
+        // Fail fast if the token is dead so we never show a fake "signed in" state.
+        var user = await GetAuthenticatedUserAsync(accessToken, cancellationToken);
+        if (user is null)
+            throw new InvalidOperationException("GitHub session is invalid or expired. Sign in again.");
 
         var results = new List<GitHubRepositoryRef>();
         for (var page = 1; page <= 5; page++)
@@ -183,6 +222,8 @@ public sealed class GitHubAuthService
             request.Headers.Add("X-GitHub-Api-Version", "2022-11-28");
 
             using var response = await Http.SendAsync(request, cancellationToken);
+            if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
+                throw new InvalidOperationException("GitHub session is invalid or expired. Sign in again.");
             if (!response.IsSuccessStatusCode)
                 throw new InvalidOperationException("Could not list your GitHub repositories. Sign in again or check network access.");
 
@@ -271,6 +312,17 @@ public sealed class GitHubAuthService
         int ExpiresInSeconds);
 
     public sealed record GitHubRepositoryRef(string Owner, string Name, bool IsPrivate, string FullName);
+
+    public sealed record GitHubUserProfile(string Login, string? Name);
+
+    private sealed class UserDto
+    {
+        [JsonPropertyName("login")]
+        public string Login { get; set; } = "";
+
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+    }
 
     private sealed class RepoDto
     {
