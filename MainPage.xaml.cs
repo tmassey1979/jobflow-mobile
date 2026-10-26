@@ -13,14 +13,15 @@ public partial class MainPage : ContentPage
     private IReadOnlyList<JobFeedItem> _allJobs = [];
     private HashSet<string> _trackedJobIds = new(StringComparer.OrdinalIgnoreCase);
     private bool _isRefreshing;
+    private bool _autoSyncAttempted;
+    private JobSortMode _sortMode = JobSortMode.Default;
 
     public MainPage()
     {
         InitializeComponent();
         BindingContext = this;
-        RefreshCommand = new Command(async () => await RefreshAllJobsAsync(fromPull: true));
-        _ = RefreshConnectionSummaryAsync();
-        _ = LoadFromOfflineStoreAsync();
+        RefreshCommand = new Command(async () => await RefreshAllJobsAsync(fromPull: true, quiet: false));
+        _ = InitializeAsync();
     }
 
     public bool IsRefreshing
@@ -40,7 +41,36 @@ public partial class MainPage : ContentPage
     {
         base.OnAppearing();
         _ = RefreshConnectionSummaryAsync();
-        _ = LoadFromOfflineStoreAsync();
+        _ = LoadTrackedIdsAsync().ContinueWith(_ =>
+        {
+            MainThread.BeginInvokeOnMainThread(() => ApplyFilter(SearchEntry.Text));
+        });
+    }
+
+    private async Task InitializeAsync()
+    {
+        await RefreshConnectionSummaryAsync();
+        await LoadFromOfflineStoreAsync();
+
+        // Auto-import once when signed in and nothing is cached yet.
+        if (_autoSyncAttempted) return;
+        _autoSyncAttempted = true;
+
+        try
+        {
+            var token = await GitHubAccountStore.GetAccessTokenAsync();
+            if (string.IsNullOrWhiteSpace(token)) return;
+
+            var records = await _offlineJobStore.GetAllAsync();
+            if (records.Count > 0) return;
+
+            StatusLabel.Text = "First launch: importing every daily feed…";
+            await RefreshAllJobsAsync(fromPull: false, quiet: true);
+        }
+        catch
+        {
+            // Auto-sync is best-effort; user can still pull to refresh.
+        }
     }
 
     private async Task RefreshConnectionSummaryAsync()
@@ -96,7 +126,7 @@ public partial class MainPage : ContentPage
             var jobs = records.Select(ToFeedItem).ToList();
             ApplyJobs(jobs);
             FeedDateLabel.Text = $"{records.Count} jobs in offline store";
-            StatusLabel.Text = $"Showing {records.Count} imported jobs. Pull down or tap Sync all to refresh from GitHub.";
+            StatusLabel.Text = $"Showing {records.Count} imported jobs. Pull down or tap Sync to refresh from GitHub.";
         }
         catch
         {
@@ -123,9 +153,41 @@ public partial class MainPage : ContentPage
         ApplicationTrackingPath = r.ApplicationTrackingPath
     };
 
-    private async void OnLoadJobsClicked(object sender, EventArgs e) => await RefreshAllJobsAsync(fromPull: false);
+    private async void OnLoadJobsClicked(object sender, EventArgs e) =>
+        await RefreshAllJobsAsync(fromPull: false, quiet: false);
 
-    private async Task RefreshAllJobsAsync(bool fromPull)
+    private async void OnSortClicked(object sender, EventArgs e)
+    {
+        var choice = await DisplayActionSheetAsync(
+            "Sort jobs",
+            "Cancel",
+            null,
+            "Match score (high → low)",
+            "Company (A → Z)",
+            "Salary (high → low)",
+            "Default order");
+
+        _sortMode = choice switch
+        {
+            "Match score (high → low)" => JobSortMode.MatchScore,
+            "Company (A → Z)" => JobSortMode.Company,
+            "Salary (high → low)" => JobSortMode.Salary,
+            "Default order" => JobSortMode.Default,
+            _ => _sortMode
+        };
+
+        SortButton.Text = _sortMode switch
+        {
+            JobSortMode.MatchScore => "Match",
+            JobSortMode.Company => "A–Z",
+            JobSortMode.Salary => "Pay",
+            _ => "Sort"
+        };
+
+        ApplyFilter(SearchEntry.Text);
+    }
+
+    private async Task RefreshAllJobsAsync(bool fromPull, bool quiet)
     {
         if (IsRefreshing && fromPull) return;
 
@@ -133,21 +195,27 @@ public partial class MainPage : ContentPage
         if (string.IsNullOrWhiteSpace(token))
         {
             IsRefreshing = false;
-            await DisplayAlertAsync(
-                "Sign in required",
-                "Open the Integrations tab, sign in with GitHub, and choose your data repository.",
-                "OK");
+            if (!quiet)
+            {
+                await DisplayAlertAsync(
+                    "Sign in required",
+                    "Open the Integrations tab, sign in with GitHub, and choose your data repository.",
+                    "OK");
+            }
             return;
         }
 
         IsRefreshing = true;
         LoadButton.IsEnabled = false;
-        StatusLabel.Text = "Importing every daily feed from GitHub…";
+        if (!quiet)
+            StatusLabel.Text = "Importing every daily feed from GitHub…";
 
         try
         {
             var (owner, repo) = await GitHubAccountStore.GetSelectedRepositoryAsync();
-            var progress = new Progress<string>(msg => MainThread.BeginInvokeOnMainThread(() => StatusLabel.Text = msg));
+            var progress = quiet
+                ? null
+                : new Progress<string>(msg => MainThread.BeginInvokeOnMainThread(() => StatusLabel.Text = msg));
 
             var feed = await _dataService.LoadAllFeedsAsync(token, owner, repo, progress);
 
@@ -168,10 +236,13 @@ public partial class MainPage : ContentPage
         catch (Exception)
         {
             await LoadFromOfflineStoreAsync();
-            await DisplayAlertAsync(
-                "JobFlow couldn't refresh",
-                "GitHub access or the feeds could not be verified. Previously imported jobs remain available offline. Check sign-in, repository choice, network, and that daily/YYYY-MM-DD.json files exist.",
-                "OK");
+            if (!quiet)
+            {
+                await DisplayAlertAsync(
+                    "JobFlow couldn't refresh",
+                    "GitHub access or the feeds could not be verified. Previously imported jobs remain available offline. Check sign-in, repository choice, network, and that daily/YYYY-MM-DD.json files exist.",
+                    "OK");
+            }
         }
         finally
         {
@@ -205,6 +276,20 @@ public partial class MainPage : ContentPage
                 || (job.Company?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
                 || (job.JobId?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false));
         }
+
+        source = _sortMode switch
+        {
+            JobSortMode.MatchScore => source
+                .OrderByDescending(j => j.MatchScore ?? -1)
+                .ThenBy(j => j.Company, StringComparer.OrdinalIgnoreCase),
+            JobSortMode.Company => source
+                .OrderBy(j => j.Company, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(j => j.Title, StringComparer.OrdinalIgnoreCase),
+            JobSortMode.Salary => source
+                .OrderByDescending(j => j.SalaryMaxUsd ?? j.SalaryMinUsd ?? -1)
+                .ThenBy(j => j.Company, StringComparer.OrdinalIgnoreCase),
+            _ => source
+        };
 
         var items = source
             .Select(job => new JobListItem
@@ -257,5 +342,13 @@ public partial class MainPage : ContentPage
         {
             await DisplayAlertAsync("Application link unavailable", "This job does not have a valid HTTPS application URL.", "OK");
         }
+    }
+
+    private enum JobSortMode
+    {
+        Default,
+        MatchScore,
+        Company,
+        Salary
     }
 }

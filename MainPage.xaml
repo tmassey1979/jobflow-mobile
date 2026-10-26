@@ -15,9 +15,10 @@
                 </VerticalStackLayout>
             </Grid>
 
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
                 <Entry x:Name="SearchEntry" Grid.Column="0" Placeholder="Filter title or company" TextChanged="OnSearchTextChanged" ClearButtonVisibility="WhileEditing" FontSize="14" />
-                <Button x:Name="LoadButton" Grid.Column="1" Text="Sync all" Clicked="OnLoadJobsClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="8" Padding="12,8" FontSize="13" />
+                <Button x:Name="SortButton" Grid.Column="1" Text="Sort" Clicked="OnSortClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" Padding="10,8" FontSize="13" />
+                <Button x:Name="LoadButton" Grid.Column="2" Text="Sync" Clicked="OnLoadJobsClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="8" Padding="10,8" FontSize="13" />
             </Grid>
 
             <Label x:Name="StatusLabel" Text="Pull down to import every job from your data repo." FontSize="12" TextColor="{StaticResource MutedInk}" />
@@ -35,7 +36,7 @@
                                HorizontalOptions="Center"
                                SemanticProperties.Description="Illustration of a quiet signal with no jobs yet" />
                         <Label Text="No jobs imported yet" FontSize="16" FontAttributes="Bold" TextColor="{StaticResource Ink}" HorizontalTextAlignment="Center" />
-                        <Label Text="Sign in on Integrations, choose your data repo, then pull down or tap Sync all to import every daily feed." TextColor="{StaticResource MutedInk}" FontSize="13" HorizontalTextAlignment="Center" />
+                        <Label Text="Sign in on Integrations, choose your data repo, then pull down or tap Sync to import every daily feed." TextColor="{StaticResource MutedInk}" FontSize="13" HorizontalTextAlignment="Center" />
                     </VerticalStackLayout>
                 </CollectionView.EmptyView>
                 <CollectionView.ItemTemplate>
