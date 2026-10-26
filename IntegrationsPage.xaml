@@ -32,6 +32,7 @@
                     <Button x:Name="DisconnectGitHubButton" Text="Sign out of GitHub" Clicked="OnDisconnectGitHubClicked" IsVisible="False" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="10" />
 
                     <Label x:Name="DeviceCodeLabel" FontSize="22" FontAttributes="Bold" TextColor="{StaticResource Accent}" IsVisible="False" HorizontalTextAlignment="Center" />
+                    <Button x:Name="CopyDeviceCodeButton" Text="Copy activation code" Clicked="OnCopyDeviceCodeClicked" IsVisible="False" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
                     <Label x:Name="GitHubDetailsLabel" Text="Not signed in on this device." FontSize="12" TextColor="{StaticResource MutedInk}" />
                     <Label Text="After sign-in, JobFlow only reads the repository you pick. It does not submit applications or write to GitHub." FontSize="12" TextColor="{StaticResource MutedInk}" />
                 </VerticalStackLayout>

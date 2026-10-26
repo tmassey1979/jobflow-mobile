@@ -1,5 +1,6 @@
 using JobFlow.Mobile.Models;
 using JobFlow.Mobile.Services;
+using Microsoft.Maui.ApplicationModel.DataTransfer;
 
 namespace JobFlow.Mobile;
 
@@ -77,6 +78,16 @@ public partial class IntegrationsPage : ContentPage
             var authorization = await _authService.StartDeviceLoginAsync(clientId, cancellation);
             DeviceCodeLabel.Text = authorization.UserCode;
             DeviceCodeLabel.IsVisible = true;
+            CopyDeviceCodeButton.IsVisible = true;
+            try
+            {
+                await Clipboard.Default.SetTextAsync(authorization.UserCode);
+                GitHubDetailsLabel.Text = "Activation code copied. Enter it at GitHub in the browser to approve access.";
+            }
+            catch
+            {
+                GitHubDetailsLabel.Text = "Copy the activation code below, then enter it at GitHub in the browser to approve access.";
+            }
             GitHubStateLabel.Text = "Approve in browser";
             GitHubDetailsLabel.Text =
                 $"Enter code {authorization.UserCode} at {authorization.VerificationUri}, then approve access. JobFlow waits here automatically.";
@@ -95,6 +106,7 @@ public partial class IntegrationsPage : ContentPage
             await GitHubAccountStore.SetAccessTokenAsync(accessToken);
 
             DeviceCodeLabel.IsVisible = false;
+            CopyDeviceCodeButton.IsVisible = false;
             GitHubStateLabel.Text = "Signed in · choose repo";
             GitHubDetailsLabel.Text = "GitHub approved the sign-in. Next, choose which repository holds your job feed.";
             ChooseRepoButton.IsVisible = true;
@@ -107,6 +119,7 @@ public partial class IntegrationsPage : ContentPage
             GitHubStateLabel.Text = "Sign-in canceled";
             GitHubDetailsLabel.Text = "GitHub sign-in was canceled.";
             DeviceCodeLabel.IsVisible = false;
+            CopyDeviceCodeButton.IsVisible = false;
         }
         catch (Exception)
         {
@@ -114,11 +127,28 @@ public partial class IntegrationsPage : ContentPage
             GitHubStateLabel.Text = "Sign-in failed";
             GitHubDetailsLabel.Text = "GitHub sign-in did not complete. Check that Device Flow is enabled on the OAuth App and try again.";
             DeviceCodeLabel.IsVisible = false;
+            CopyDeviceCodeButton.IsVisible = false;
             await DisplayAlertAsync("Couldn't sign in", "GitHub login failed. Confirm the OAuth App has Device Flow enabled and try again.", "OK");
         }
         finally
         {
             SignInGitHubButton.IsEnabled = true;
+        }
+    }
+
+    private async void OnCopyDeviceCodeClicked(object sender, EventArgs e)
+    {
+        var code = DeviceCodeLabel.Text;
+        if (string.IsNullOrWhiteSpace(code)) return;
+
+        try
+        {
+            await Clipboard.Default.SetTextAsync(code);
+            GitHubDetailsLabel.Text = "Activation code copied. Return to the GitHub browser page and paste it there.";
+        }
+        catch
+        {
+            await DisplayAlertAsync("Could not copy code", "Your device clipboard was unavailable. You can read the activation code displayed above and enter it manually.", "OK");
         }
     }
 
