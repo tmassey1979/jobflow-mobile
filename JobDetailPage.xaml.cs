@@ -46,6 +46,9 @@ public partial class JobDetailPage : ContentPage
         OpenAppButton.IsEnabled = IsSafeHttps(_job.ApplicationUrl);
     }
 
+    private async void OnMetadataClicked(object sender, EventArgs e) =>
+        await OpenDocumentAsync(DocumentKind.Metadata);
+
     private async void OnResumeClicked(object sender, EventArgs e) =>
         await OpenDocumentAsync(DocumentKind.Resume);
 
@@ -94,7 +97,12 @@ public partial class JobDetailPage : ContentPage
         }
 
         var (owner, repo) = await GitHubAccountStore.GetSelectedRepositoryAsync();
-        var title = kind == DocumentKind.Resume ? "Resume" : "Cover letter";
+        var title = kind switch
+        {
+            DocumentKind.Metadata => "Metadata",
+            DocumentKind.Resume => "Resume",
+            _ => "Cover letter"
+        };
         var subtitle = $"{_job.Title} · {_job.Company}";
         var candidates = BuildDocumentPaths(_job, kind);
 
@@ -138,13 +146,23 @@ public partial class JobDetailPage : ContentPage
     private static List<string> BuildDocumentPaths(JobFeedItem job, DocumentKind kind)
     {
         var paths = new List<string>();
-        var preferred = kind == DocumentKind.Resume ? job.ResumePath : job.CoverLetterPath;
+        string? preferred = kind switch
+        {
+            DocumentKind.Metadata => job.MetadataPath,
+            DocumentKind.Resume => job.ResumePath,
+            _ => job.CoverLetterPath
+        };
         if (!string.IsNullOrWhiteSpace(preferred))
             paths.Add(preferred.Trim().TrimStart('/'));
 
         if (!string.IsNullOrWhiteSpace(job.JobId))
         {
-            var fileName = kind == DocumentKind.Resume ? "resume.md" : "cover-letter.md";
+            var fileName = kind switch
+            {
+                DocumentKind.Metadata => "metadata.json",
+                DocumentKind.Resume => "resume.md",
+                _ => "cover-letter.md"
+            };
             var fallback = $"jobs/{job.JobId}/{fileName}";
             if (!paths.Contains(fallback, StringComparer.OrdinalIgnoreCase))
                 paths.Add(fallback);
@@ -161,6 +179,7 @@ public partial class JobDetailPage : ContentPage
 
     private enum DocumentKind
     {
+        Metadata,
         Resume,
         CoverLetter
     }

@@ -40,6 +40,7 @@
 
             <Label x:Name="ApplicationUrlLabel" FontSize="12" TextColor="{StaticResource MutedInk}" LineBreakMode="WordWrap" />
 
+            <Button x:Name="MetadataButton" Text="View metadata" Clicked="OnMetadataClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
             <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                 <Button Grid.Column="0" x:Name="ResumeButton" Text="Resume" Clicked="OnResumeClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
                 <Button Grid.Column="1" x:Name="CoverButton" Text="Cover letter" Clicked="OnCoverClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
