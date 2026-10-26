@@ -23,11 +23,13 @@ public static class GitHubAccountStore
 
     public static async Task<string?> GetAccessTokenAsync()
     {
-        var token = await TryGetAsync(TokenKey);
+        // Do not hide SecureStorage failures as a normal signed-out state. The UI needs
+        // to distinguish a missing token from storage that cannot be read.
+        var token = await SecureStorage.Default.GetAsync(TokenKey);
         if (!string.IsNullOrWhiteSpace(token))
             return token;
 
-        var legacy = await TryGetAsync(LegacyTokenKey);
+        var legacy = await SecureStorage.Default.GetAsync(LegacyTokenKey);
         if (string.IsNullOrWhiteSpace(legacy))
             return null;
 
@@ -36,8 +38,20 @@ public static class GitHubAccountStore
         return legacy;
     }
 
-    public static Task SetAccessTokenAsync(string token) =>
-        SecureStorage.Default.SetAsync(TokenKey, token.Trim());
+    public static async Task SetAccessTokenAsync(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            throw new ArgumentException("GitHub returned an empty access token.", nameof(token));
+
+        var normalized = token.Trim();
+        await SecureStorage.Default.SetAsync(TokenKey, normalized);
+
+        // Verify persistence immediately so a successful OAuth screen cannot be mistaken
+        // for a saved session when Android SecureStorage did not retain the value.
+        var saved = await SecureStorage.Default.GetAsync(TokenKey);
+        if (!string.Equals(saved, normalized, StringComparison.Ordinal))
+            throw new InvalidOperationException("Android Secure Storage did not retain the GitHub session. Please restart the app and try signing in again.");
+    }
 
     public static async Task<(string Owner, string Name)> GetSelectedRepositoryAsync()
     {
