@@ -5,60 +5,57 @@
              x:Class="JobFlow.Mobile.MainPage"
              Title="JobFlow Mobile"
              BackgroundColor="{StaticResource PageBackground}">
-    <Grid RowDefinitions="Auto,*" Padding="20" RowSpacing="16">
-        <VerticalStackLayout Grid.Row="0" Spacing="12">
-            <Grid ColumnDefinitions="48,*" ColumnSpacing="12">
-                <Image Grid.Column="0" Source="signal_mark.png" WidthRequest="44" HeightRequest="44" Aspect="AspectFit" VerticalOptions="Center" SemanticProperties.Description="JobFlow Signal Mark logo" />
-                <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
-                    <Label Text="JobFlow" FontSize="30" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
-                    <Label Text="Your job search, in your pocket." FontSize="14" TextColor="{StaticResource MutedInk}" />
+    <Grid RowDefinitions="Auto,*" Padding="12" RowSpacing="10">
+        <VerticalStackLayout Grid.Row="0" Spacing="8">
+            <Grid ColumnDefinitions="40,*" ColumnSpacing="10">
+                <Image Grid.Column="0" Source="signal_mark.png" WidthRequest="36" HeightRequest="36" Aspect="AspectFit" VerticalOptions="Center" SemanticProperties.Description="JobFlow Signal Mark logo" />
+                <VerticalStackLayout Grid.Column="1" Spacing="0" VerticalOptions="Center">
+                    <Label Text="JobFlow" FontSize="22" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                    <Label x:Name="ConnectionSummaryLabel" FontSize="11" TextColor="{StaticResource MutedInk}" LineBreakMode="TailTruncation" />
                 </VerticalStackLayout>
             </Grid>
-            <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="14" BackgroundColor="White">
-                <VerticalStackLayout Spacing="10">
-                    <Label Text="Private job feed" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
-                    <Label x:Name="ConnectionSummaryLabel" Text="Sign in with GitHub on the Integrations tab, then choose your data repository." FontSize="12" TextColor="{StaticResource MutedInk}" />
-                    <Button x:Name="LoadButton" Text="Load latest jobs" Clicked="OnLoadJobsClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
-                    <Entry x:Name="SearchEntry" Placeholder="Filter by title or company" TextChanged="OnSearchTextChanged" ClearButtonVisibility="WhileEditing" />
-                </VerticalStackLayout>
-            </Border>
-            <Label x:Name="StatusLabel" Text="Sign in to load the latest verified feed." FontSize="13" TextColor="{StaticResource MutedInk}" />
-            <Label x:Name="FeedDateLabel" FontSize="12" TextColor="{StaticResource MutedInk}" />
+
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Entry x:Name="SearchEntry" Grid.Column="0" Placeholder="Filter title or company" TextChanged="OnSearchTextChanged" ClearButtonVisibility="WhileEditing" FontSize="14" />
+                <Button x:Name="LoadButton" Grid.Column="1" Text="Sync all" Clicked="OnLoadJobsClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="8" Padding="12,8" FontSize="13" />
+            </Grid>
+
+            <Label x:Name="StatusLabel" Text="Pull down to import every job from your data repo." FontSize="12" TextColor="{StaticResource MutedInk}" />
+            <Label x:Name="FeedDateLabel" FontSize="11" TextColor="{StaticResource MutedInk}" />
         </VerticalStackLayout>
 
-        <CollectionView x:Name="JobsCollection" Grid.Row="1" SelectionMode="None">
-            <CollectionView.EmptyView>
-                <VerticalStackLayout Padding="24" Spacing="12" HorizontalOptions="Center" VerticalOptions="Center">
-                    <Image Source="empty_jobs.png"
-                           WidthRequest="200"
-                           HeightRequest="133"
-                           Aspect="AspectFit"
-                           HorizontalOptions="Center"
-                           SemanticProperties.Description="Illustration of a quiet signal with no jobs yet" />
-                    <Label Text="No jobs loaded yet" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" HorizontalTextAlignment="Center" />
-                    <Label Text="Sign in on Integrations, choose your data repo, then load the latest feed." TextColor="{StaticResource MutedInk}" HorizontalTextAlignment="Center" />
-                </VerticalStackLayout>
-            </CollectionView.EmptyView>
-            <CollectionView.ItemTemplate>
-                <DataTemplate x:DataType="models:JobFeedItem">
-                    <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="14" Margin="0,0,0,10" BackgroundColor="White">
-                        <VerticalStackLayout Spacing="7">
-                            <Label Text="{Binding Title}" FontSize="17" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
-                            <Label Text="{Binding Company}" FontSize="14" TextColor="{StaticResource Accent}" />
-                            <Label Text="{Binding SalaryLabel}" FontSize="13" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
-                            <Label Text="{Binding RemoteScope}" FontSize="12" TextColor="{StaticResource MutedInk}" />
-                            <Label Text="{Binding MatchScore, StringFormat='Match score: {0}%'}" FontSize="12" TextColor="{StaticResource MutedInk}" />
-                            <Button Text="Details" Clicked="OnJobDetailsClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="8" />
-                            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                                <Button Grid.Column="0" Text="Resume" Clicked="OnViewResumeClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
-                                <Button Grid.Column="1" Text="Cover letter" Clicked="OnViewCoverLetterClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
-                            </Grid>
-                            <Button Text="Track application" Clicked="OnTrackApplicationClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
-                            <Button Text="Open application" Clicked="OnOpenApplicationClicked" CommandParameter="{Binding ApplicationUrl}" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
-                        </VerticalStackLayout>
-                    </Border>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
+        <RefreshView x:Name="JobsRefresh" Grid.Row="1" IsRefreshing="{Binding IsRefreshing, Mode=TwoWay}" Command="{Binding RefreshCommand}">
+            <CollectionView x:Name="JobsCollection" SelectionMode="None">
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout Padding="20" Spacing="10" HorizontalOptions="Center" VerticalOptions="Center">
+                        <Image Source="empty_jobs.png"
+                               WidthRequest="160"
+                               HeightRequest="106"
+                               Aspect="AspectFit"
+                               HorizontalOptions="Center"
+                               SemanticProperties.Description="Illustration of a quiet signal with no jobs yet" />
+                        <Label Text="No jobs imported yet" FontSize="16" FontAttributes="Bold" TextColor="{StaticResource Ink}" HorizontalTextAlignment="Center" />
+                        <Label Text="Sign in on Integrations, choose your data repo, then pull down or tap Sync all to import every daily feed." TextColor="{StaticResource MutedInk}" FontSize="13" HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:JobFeedItem">
+                        <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 10" Padding="10" Margin="0,0,0,6" BackgroundColor="White">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="{Binding Title}" FontSize="15" FontAttributes="Bold" TextColor="{StaticResource Ink}" LineBreakMode="TailTruncation" MaxLines="2" />
+                                <Label Text="{Binding Company}" FontSize="13" TextColor="{StaticResource Accent}" LineBreakMode="TailTruncation" />
+                                <Label Text="{Binding SalaryLabel}" FontSize="12" TextColor="{StaticResource Ink}" />
+                                <Label Text="{Binding RemoteScope}" FontSize="11" TextColor="{StaticResource MutedInk}" LineBreakMode="TailTruncation" />
+                                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6" Margin="0,4,0,0">
+                                    <Button Grid.Column="0" Text="Details" Clicked="OnJobDetailsClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="6" Padding="6,6" FontSize="12" />
+                                    <Button Grid.Column="1" Text="Track" Clicked="OnTrackApplicationClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="6" Padding="6,6" FontSize="12" />
+                                    <Button Grid.Column="2" Text="Apply" Clicked="OnOpenApplicationClicked" CommandParameter="{Binding ApplicationUrl}" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="6" Padding="6,6" FontSize="12" />
+                                </Grid>
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </RefreshView>
     </Grid>
 </ContentPage>

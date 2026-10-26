@@ -18,7 +18,7 @@ public sealed class GitHubDataService
     {
         var client = new HttpClient
         {
-            Timeout = TimeSpan.FromSeconds(45)
+            Timeout = TimeSpan.FromSeconds(90)
         };
         client.DefaultRequestHeaders.UserAgent.ParseAdd("JobFlow-Mobile/0.1");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
@@ -26,11 +26,104 @@ public sealed class GitHubDataService
         return client;
     }
 
+    /// <summary>
+    /// Loads only the single newest daily feed file (legacy path).
+    /// Prefer <see cref="LoadAllFeedsAsync"/> for the full import experience.
+    /// </summary>
     public async Task<DailyFeed> LoadLatestFeedAsync(
         string token,
         string? owner = null,
         string? repository = null,
         CancellationToken cancellationToken = default)
+    {
+        var (resolvedOwner, resolvedRepo, fileNames) = await ListDailyFeedFilesAsync(token, owner, repository, cancellationToken);
+        var latestName = DailyFeedParser.SelectLatestFeedFile(fileNames);
+        if (latestName is null)
+            throw new InvalidOperationException("No dated JSON feeds in YYYY-MM-DD.json format were found in the repository's daily folder.");
+
+        var feedJson = await ReadTextFileAsync($"daily/{latestName}", token, resolvedOwner, resolvedRepo, cancellationToken);
+        var feed = DailyFeedParser.Parse(feedJson);
+        feed.SourcePath = $"{resolvedOwner}/{resolvedRepo}/daily/{latestName}";
+        return feed;
+    }
+
+    /// <summary>
+    /// Loads every dated daily feed, merges unique jobs (first occurrence wins for a given job_id),
+    /// and returns a combined feed suitable for importing into the offline store.
+    /// </summary>
+    public async Task<DailyFeed> LoadAllFeedsAsync(
+        string token,
+        string? owner = null,
+        string? repository = null,
+        IProgress<string>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var (resolvedOwner, resolvedRepo, fileNames) = await ListDailyFeedFilesAsync(token, owner, repository, cancellationToken);
+
+        var datedNames = fileNames
+            .Where(name => DailyFeedParser.SelectLatestFeedFile([name]) is not null)
+            .OrderByDescending(name => name, StringComparer.Ordinal)
+            .ToList();
+
+        if (datedNames.Count == 0)
+            throw new InvalidOperationException("No dated JSON feeds in YYYY-MM-DD.json format were found in the repository's daily folder.");
+
+        progress?.Report($"Found {datedNames.Count} daily feed file(s). Importing…");
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var mergedJobs = new List<JobFeedItem>();
+        string? newestGeneratedAt = null;
+        var sources = new List<string>();
+
+        foreach (var name in datedNames)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            progress?.Report($"Reading daily/{name}…");
+
+            try
+            {
+                var feedJson = await ReadTextFileAsync($"daily/{name}", token, resolvedOwner, resolvedRepo, cancellationToken);
+                var feed = DailyFeedParser.Parse(feedJson);
+                sources.Add($"daily/{name}");
+
+                if (newestGeneratedAt is null && !string.IsNullOrWhiteSpace(feed.GeneratedAt))
+                    newestGeneratedAt = feed.GeneratedAt;
+
+                foreach (var job in feed.Jobs)
+                {
+                    if (string.IsNullOrWhiteSpace(job.JobId))
+                        continue;
+                    if (!seen.Add(job.JobId))
+                        continue;
+                    mergedJobs.Add(job);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Skip a single broken daily file rather than aborting the whole import.
+                progress?.Report($"Skipped daily/{name}: {ex.Message}");
+            }
+        }
+
+        if (mergedJobs.Count == 0)
+            throw new InvalidOperationException("No valid jobs were found across the daily feed files.");
+
+        progress?.Report($"Merged {mergedJobs.Count} unique jobs from {sources.Count} feed file(s).");
+
+        return new DailyFeed
+        {
+            SchemaVersion = 1,
+            GeneratedAt = newestGeneratedAt,
+            Jobs = mergedJobs,
+            SourcePath = $"{resolvedOwner}/{resolvedRepo}/daily ({sources.Count} files)"
+        };
+    }
+
+    private async Task<(string Owner, string Repository, List<string> FileNames)> ListDailyFeedFilesAsync(
+        string token,
+        string? owner,
+        string? repository,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(token))
             throw new ArgumentException("Sign in with GitHub first.", nameof(token));
@@ -48,15 +141,13 @@ public sealed class GitHubDataService
         var listingJson = await response.Content.ReadAsStringAsync(cancellationToken);
         var entries = JsonSerializer.Deserialize<List<GitHubContentEntry>>(listingJson, JsonOptions) ?? [];
 
-        var latestName = DailyFeedParser.SelectLatestFeedFile(
-            entries.Where(entry => entry.Type == "file").Select(entry => entry.Name));
-        if (latestName is null)
-            throw new InvalidOperationException("No dated JSON feeds in YYYY-MM-DD.json format were found in the repository's daily folder.");
+        var names = entries
+            .Where(entry => entry.Type == "file")
+            .Select(entry => entry.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToList();
 
-        var feedJson = await ReadTextFileAsync($"daily/{latestName}", token, owner!, repository!, cancellationToken);
-        var feed = DailyFeedParser.Parse(feedJson);
-        feed.SourcePath = $"{owner}/{repository}/daily/{latestName}";
-        return feed;
+        return (owner!, repository!, names);
     }
 
     public async Task<string> ReadTextFileAsync(
