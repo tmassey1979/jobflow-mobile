@@ -39,10 +39,13 @@
                     </VerticalStackLayout>
                 </CollectionView.EmptyView>
                 <CollectionView.ItemTemplate>
-                    <DataTemplate x:DataType="models:JobFeedItem">
+                    <DataTemplate x:DataType="models:JobListItem">
                         <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 10" Padding="10" Margin="0,0,0,6" BackgroundColor="White">
                             <VerticalStackLayout Spacing="4">
-                                <Label Text="{Binding Title}" FontSize="15" FontAttributes="Bold" TextColor="{StaticResource Ink}" LineBreakMode="TailTruncation" MaxLines="2" />
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label Grid.Column="0" Text="{Binding Title}" FontSize="15" FontAttributes="Bold" TextColor="{StaticResource Ink}" LineBreakMode="TailTruncation" MaxLines="2" />
+                                    <Label Grid.Column="1" Text="{Binding TrackedLabel}" FontSize="11" FontAttributes="Bold" TextColor="{StaticResource Accent}" VerticalOptions="Start" />
+                                </Grid>
                                 <Label Text="{Binding Company}" FontSize="13" TextColor="{StaticResource Accent}" LineBreakMode="TailTruncation" />
                                 <Label Text="{Binding SalaryLabel}" FontSize="12" TextColor="{StaticResource Ink}" />
                                 <Label Text="{Binding RemoteScope}" FontSize="11" TextColor="{StaticResource MutedInk}" LineBreakMode="TailTruncation" />

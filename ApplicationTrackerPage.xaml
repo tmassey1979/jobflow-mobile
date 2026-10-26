@@ -5,51 +5,50 @@
              x:Class="JobFlow.Mobile.ApplicationTrackerPage"
              Title="Applications"
              BackgroundColor="{StaticResource PageBackground}">
-    <Grid RowDefinitions="Auto,*" Padding="20" RowSpacing="14">
-        <VerticalStackLayout Grid.Row="0" Spacing="8">
-            <Grid ColumnDefinitions="44,*" ColumnSpacing="10">
-                <Image Grid.Column="0" Source="signal_mark.png" WidthRequest="40" HeightRequest="40" Aspect="AspectFit" VerticalOptions="Center" SemanticProperties.Description="JobFlow Signal Mark logo" />
-                <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
-                    <Label Text="Application tracker" FontSize="26" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
-                    <Label Text="Track progress privately on this device." FontSize="13" TextColor="{StaticResource MutedInk}" />
-                </VerticalStackLayout>
-            </Grid>
-            <Label Text="Nothing is submitted or sent for you." FontSize="12" TextColor="{StaticResource MutedInk}" />
-            <Label x:Name="SummaryLabel" Text="No applications tracked yet." FontSize="13" FontAttributes="Bold" TextColor="{StaticResource Accent}" />
-            <Label x:Name="PipelineLabel" FontSize="12" TextColor="{StaticResource MutedInk}" LineBreakMode="WordWrap" />
-            <HorizontalStackLayout Spacing="8">
-                <Button x:Name="FilterAllButton" Text="All" Clicked="OnFilterAllClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="8" Padding="12,6" />
-                <Button x:Name="FilterOverdueButton" Text="Overdue" Clicked="OnFilterOverdueClicked" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="8" Padding="12,6" />
-                <Button x:Name="FilterDueSoonButton" Text="Due soon" Clicked="OnFilterDueSoonClicked" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="8" Padding="12,6" />
-                <Button x:Name="FilterStageButton" Text="Stage" Clicked="OnFilterStageClicked" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="8" Padding="12,6" />
-            </HorizontalStackLayout>
-            <SearchBar x:Name="SearchEntry" Placeholder="Search tracked jobs or companies" TextChanged="OnSearchTextChanged" BackgroundColor="White" />
+    <Grid RowDefinitions="Auto,*" Padding="12" RowSpacing="10">
+        <VerticalStackLayout Grid.Row="0" Spacing="6">
+            <Label Text="Applications" FontSize="22" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+            <Label x:Name="SummaryLabel" Text="No applications tracked yet." FontSize="12" FontAttributes="Bold" TextColor="{StaticResource Accent}" />
+            <Label x:Name="PipelineLabel" FontSize="11" TextColor="{StaticResource MutedInk}" LineBreakMode="TailTruncation" />
+            <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                <HorizontalStackLayout Spacing="6">
+                    <Button x:Name="FilterAllButton" Text="All" Clicked="OnFilterAllClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="8" Padding="10,6" FontSize="12" />
+                    <Button x:Name="FilterOverdueButton" Text="Overdue" Clicked="OnFilterOverdueClicked" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="8" Padding="10,6" FontSize="12" />
+                    <Button x:Name="FilterDueSoonButton" Text="Due soon" Clicked="OnFilterDueSoonClicked" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="8" Padding="10,6" FontSize="12" />
+                    <Button x:Name="FilterStageButton" Text="Stage" Clicked="OnFilterStageClicked" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="8" Padding="10,6" FontSize="12" />
+                </HorizontalStackLayout>
+            </ScrollView>
+            <Entry x:Name="SearchEntry" Placeholder="Search title, company, notes" TextChanged="OnSearchTextChanged" FontSize="14" ClearButtonVisibility="WhileEditing" />
         </VerticalStackLayout>
+
         <CollectionView x:Name="ApplicationsCollection" Grid.Row="1" SelectionMode="None">
             <CollectionView.EmptyView>
-                <VerticalStackLayout Padding="24" Spacing="8" HorizontalOptions="Center" VerticalOptions="Center">
-                    <Image Source="empty_jobs.png" WidthRequest="160" HeightRequest="107" Aspect="AspectFit" HorizontalOptions="Center" SemanticProperties.Description="JobFlow empty-state illustration" />
-                    <Label x:Name="EmptyTitleLabel" Text="Your tracker starts here" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" HorizontalTextAlignment="Center" />
-                    <Label x:Name="EmptyDescriptionLabel" Text="Use Track application on any job card to add it to your pipeline." TextColor="{StaticResource MutedInk}" HorizontalTextAlignment="Center" />
+                <VerticalStackLayout Padding="20" Spacing="8" HorizontalOptions="Center" VerticalOptions="Center">
+                    <Image Source="empty_jobs.png" WidthRequest="140" HeightRequest="93" Aspect="AspectFit" HorizontalOptions="Center" SemanticProperties.Description="JobFlow empty-state illustration" />
+                    <Label x:Name="EmptyTitleLabel" Text="Your tracker starts here" FontSize="16" FontAttributes="Bold" TextColor="{StaticResource Ink}" HorizontalTextAlignment="Center" />
+                    <Label x:Name="EmptyDescriptionLabel" Text="Tap Track on any job to move it here." TextColor="{StaticResource MutedInk}" FontSize="13" HorizontalTextAlignment="Center" />
                 </VerticalStackLayout>
             </CollectionView.EmptyView>
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="models:ApplicationRecord">
-                    <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="14" Margin="0,0,0,10" BackgroundColor="White">
-                        <VerticalStackLayout Spacing="8">
-                            <Label Text="{Binding Title}" FontSize="17" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
-                            <Label Text="{Binding Company}" FontSize="14" TextColor="{StaticResource Accent}" />
-                            <Label Text="{Binding Status, StringFormat='Stage: {0}'}" FontSize="13" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
-                            <Label Text="{Binding Notes, StringFormat='Notes: {0}'}" FontSize="12" TextColor="{StaticResource MutedInk}" />
-                            <Label Text="{Binding FollowUpDisplay}" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource Accent}" />
-                            <Button Text="Set follow-up date" Clicked="OnFollowUpClicked" CommandParameter="{Binding JobId}" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
-                            <Button Text="Edit notes" Clicked="OnEditNotesClicked" CommandParameter="{Binding JobId}" BackgroundColor="#F1F3F7" TextColor="{StaticResource Ink}" CornerRadius="8" />
-                            <Label Text="{Binding UpdatedAtUtc, StringFormat='Updated: {0:g} UTC'}" FontSize="11" TextColor="{StaticResource MutedInk}" />
+                    <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 10" Padding="10" Margin="0,0,0,6" BackgroundColor="White">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="{Binding Title}" FontSize="15" FontAttributes="Bold" TextColor="{StaticResource Ink}" LineBreakMode="TailTruncation" MaxLines="2" />
+                            <Label Text="{Binding Company}" FontSize="13" TextColor="{StaticResource Accent}" LineBreakMode="TailTruncation" />
                             <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                                <Button Grid.Column="0" Text="Choose stage" Clicked="OnChooseStageClicked" CommandParameter="{Binding JobId}" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="8" />
-                                <Button Grid.Column="1" Text="Remove" Clicked="OnRemoveClicked" CommandParameter="{Binding JobId}" BackgroundColor="#F1F3F7" TextColor="{StaticResource Ink}" CornerRadius="8" />
+                                <Label Grid.Column="0" Text="{Binding Status, StringFormat='Stage: {0}'}" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                                <Label Grid.Column="1" Text="{Binding FollowUpDisplay}" FontSize="11" TextColor="{StaticResource Accent}" LineBreakMode="TailTruncation" HorizontalTextAlignment="End" />
                             </Grid>
-                            <Button Text="Open application" Clicked="OnOpenApplicationClicked" CommandParameter="{Binding ApplicationUrl}" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" />
+                            <Label Text="{Binding Notes}" FontSize="11" TextColor="{StaticResource MutedInk}" LineBreakMode="TailTruncation" MaxLines="2" />
+                            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6" Margin="0,4,0,0">
+                                <Button Grid.Column="0" Text="Stage" Clicked="OnChooseStageClicked" CommandParameter="{Binding JobId}" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="6" Padding="6,6" FontSize="12" />
+                                <Button Grid.Column="1" Text="Follow-up" Clicked="OnFollowUpClicked" CommandParameter="{Binding JobId}" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="6" Padding="6,6" FontSize="12" />
+                                <Button Grid.Column="2" Text="Notes" Clicked="OnEditNotesClicked" CommandParameter="{Binding JobId}" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="6" Padding="6,6" FontSize="12" />
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                                <Button Grid.Column="0" Text="Apply link" Clicked="OnOpenApplicationClicked" CommandParameter="{Binding ApplicationUrl}" BackgroundColor="#F1F3F7" TextColor="{StaticResource Ink}" CornerRadius="6" Padding="6,6" FontSize="12" />
+                                <Button Grid.Column="1" Text="Remove" Clicked="OnRemoveClicked" CommandParameter="{Binding JobId}" BackgroundColor="#F1F3F7" TextColor="{StaticResource Ink}" CornerRadius="6" Padding="6,6" FontSize="12" />
+                            </Grid>
                         </VerticalStackLayout>
                     </Border>
                 </DataTemplate>
