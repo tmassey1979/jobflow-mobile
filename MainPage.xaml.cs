@@ -1,3 +1,4 @@
+using System.Windows.Input;
 using JobFlow.Mobile.Models;
 using JobFlow.Mobile.Services;
 
@@ -7,20 +8,38 @@ public partial class MainPage : ContentPage
 {
     private readonly GitHubDataService _dataService = new();
     private readonly FeedCacheService _cacheService = new();
+    private readonly OfflineJobStore _offlineJobStore = new();
     private readonly ApplicationTrackerService _applicationTracker = new();
     private IReadOnlyList<JobFeedItem> _allJobs = [];
+    private bool _isRefreshing;
 
     public MainPage()
     {
         InitializeComponent();
+        BindingContext = this;
+        RefreshCommand = new Command(async () => await RefreshAllJobsAsync(fromPull: true));
         _ = RefreshConnectionSummaryAsync();
-        _ = LoadCachedFeedAsync();
+        _ = LoadFromOfflineStoreAsync();
     }
+
+    public bool IsRefreshing
+    {
+        get => _isRefreshing;
+        set
+        {
+            if (_isRefreshing == value) return;
+            _isRefreshing = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public ICommand RefreshCommand { get; }
 
     protected override void OnAppearing()
     {
         base.OnAppearing();
         _ = RefreshConnectionSummaryAsync();
+        _ = LoadFromOfflineStoreAsync();
     }
 
     private async Task RefreshConnectionSummaryAsync()
@@ -30,73 +49,116 @@ public partial class MainPage : ContentPage
             var token = await GitHubAccountStore.GetAccessTokenAsync();
             var (owner, repo) = await GitHubAccountStore.GetSelectedRepositoryAsync();
             ConnectionSummaryLabel.Text = string.IsNullOrWhiteSpace(token)
-                ? "Sign in with GitHub on the Integrations tab, then choose your data repository."
-                : $"Signed in · reading {owner}/{repo}. Change this on the Integrations tab.";
+                ? "Sign in on Integrations, then choose your data repository."
+                : $"Signed in · {owner}/{repo}";
         }
         catch
         {
-            ConnectionSummaryLabel.Text = "Sign in with GitHub on the Integrations tab.";
+            ConnectionSummaryLabel.Text = "Sign in on Integrations.";
         }
     }
 
-    private async Task LoadCachedFeedAsync()
+    private async Task LoadFromOfflineStoreAsync()
     {
         try
         {
-            var cached = await _cacheService.LoadLatestAsync();
-            if (cached is null) return;
+            var records = await _offlineJobStore.GetAllAsync();
+            if (records.Count == 0)
+            {
+                // Fall back to the single latest cached feed envelope if the store is empty.
+                var cached = await _cacheService.LoadLatestAsync();
+                if (cached is not null)
+                {
+                    ApplyJobs(cached.Jobs);
+                    FeedDateLabel.Text = $"Feed: {cached.GeneratedAt ?? "unknown"}";
+                    StatusLabel.Text = $"{cached.Jobs.Count} jobs from last cache. Pull down to import every daily feed.";
+                }
+                return;
+            }
 
-            ApplyJobs(cached.Jobs);
-            FeedDateLabel.Text = $"Feed generated: {cached.GeneratedAt ?? "date not supplied"}";
-            StatusLabel.Text = $"Showing {cached.Jobs.Count} cached jobs from {cached.SourcePath ?? "the last successful sync"}. Pull a fresh feed when online.";
+            var jobs = records.Select(ToFeedItem).ToList();
+            ApplyJobs(jobs);
+            FeedDateLabel.Text = $"{records.Count} jobs in offline store";
+            StatusLabel.Text = $"Showing {records.Count} imported jobs. Pull down or tap Sync all to refresh from GitHub.";
         }
         catch
         {
-            // A broken or unavailable cache must not prevent online use.
+            // Offline store failure must not block the page.
         }
     }
 
-    private async void OnLoadJobsClicked(object sender, EventArgs e)
+    private static JobFeedItem ToFeedItem(CachedJobRecord r) => new()
     {
+        JobId = r.SourceJobId ?? r.JobId,
+        Title = r.Title,
+        Company = r.Company,
+        SalaryMinUsd = r.SalaryMinUsd,
+        SalaryMaxUsd = r.SalaryMaxUsd,
+        SalaryPayType = r.SalaryPayType,
+        RemoteScope = r.RemoteScope,
+        VerifiedAt = r.VerifiedAt,
+        PostingDate = r.PostingDate,
+        ApplicationUrl = r.ApplicationUrl,
+        MatchScore = r.MatchScore,
+        MetadataPath = r.MetadataPath,
+        ResumePath = r.ResumePath,
+        CoverLetterPath = r.CoverLetterPath,
+        ApplicationTrackingPath = r.ApplicationTrackingPath
+    };
+
+    private async void OnLoadJobsClicked(object sender, EventArgs e) => await RefreshAllJobsAsync(fromPull: false);
+
+    private async Task RefreshAllJobsAsync(bool fromPull)
+    {
+        if (IsRefreshing && fromPull) return;
+
         var token = await GitHubAccountStore.GetAccessTokenAsync();
         if (string.IsNullOrWhiteSpace(token))
         {
+            IsRefreshing = false;
             await DisplayAlertAsync(
                 "Sign in required",
-                "Open the Integrations tab, sign in with GitHub, and choose your data repository. You do not paste a token.",
+                "Open the Integrations tab, sign in with GitHub, and choose your data repository.",
                 "OK");
             return;
         }
 
+        IsRefreshing = true;
         LoadButton.IsEnabled = false;
-        StatusLabel.Text = "Loading latest feed from GitHub…";
+        StatusLabel.Text = "Importing every daily feed from GitHub…";
+
         try
         {
             var (owner, repo) = await GitHubAccountStore.GetSelectedRepositoryAsync();
-            var feed = await _dataService.LoadLatestFeedAsync(token, owner, repo);
-            ApplyJobs(feed.Jobs);
-            FeedDateLabel.Text = $"Feed generated: {feed.GeneratedAt ?? "date not supplied"}";
-            StatusLabel.Text = $"{feed.Jobs.Count} unique jobs from {owner}/{repo}. Feed data is read-only.";
+            var progress = new Progress<string>(msg => MainThread.BeginInvokeOnMainThread(() => StatusLabel.Text = msg));
 
-            try { await _cacheService.SaveLatestAsync(feed); }
-            catch { StatusLabel.Text += " Local cache could not be updated."; }
+            var feed = await _dataService.LoadAllFeedsAsync(token, owner, repo, progress);
+
+            // Persist the combined feed and upsert into the offline job store.
+            try
+            {
+                await _cacheService.SaveLatestAsync(feed);
+            }
+            catch
+            {
+                // Still show the jobs even if cache write fails.
+            }
+
+            ApplyJobs(feed.Jobs);
+            FeedDateLabel.Text = $"Imported {feed.Jobs.Count} unique jobs · {feed.SourcePath}";
+            StatusLabel.Text = $"{feed.Jobs.Count} unique jobs from {owner}/{repo}. Pull down anytime to refresh all feeds.";
         }
         catch (Exception)
         {
-            var cached = await TryLoadCachedFeedAsync();
-            if (cached is not null)
-            {
-                ApplyJobs(cached.Jobs);
-                FeedDateLabel.Text = $"Feed generated: {cached.GeneratedAt ?? "date not supplied"}";
-                StatusLabel.Text = $"Offline: showing {cached.Jobs.Count} cached jobs. GitHub refresh failed.";
-            }
+            await LoadFromOfflineStoreAsync();
             await DisplayAlertAsync(
                 "JobFlow couldn't refresh",
-                "GitHub access or the feed could not be verified. If a saved feed exists, it remains available offline. Check sign-in, repository choice, network, and feed structure.",
+                "GitHub access or the feeds could not be verified. Previously imported jobs remain available offline. Check sign-in, repository choice, network, and that daily/YYYY-MM-DD.json files exist.",
                 "OK");
         }
         finally
         {
+            IsRefreshing = false;
             LoadButton.IsEnabled = true;
         }
     }
@@ -134,106 +196,10 @@ public partial class MainPage : ContentPage
         StatusLabel.Text = $"Showing {filtered.Count} of {_allJobs.Count} jobs matching \"{term}\".";
     }
 
-    private async Task<DailyFeed?> TryLoadCachedFeedAsync()
-    {
-        try { return await _cacheService.LoadLatestAsync(); }
-        catch { return null; }
-    }
-
     private async void OnJobDetailsClicked(object sender, EventArgs e)
     {
         if (sender is not Button { BindingContext: JobFeedItem job }) return;
         await Navigation.PushAsync(new JobDetailPage(job));
-    }
-
-    private async void OnViewResumeClicked(object sender, EventArgs e)
-    {
-        if (sender is not Button { BindingContext: JobFeedItem job }) return;
-        await OpenDocumentAsync(job, DocumentKind.Resume);
-    }
-
-    private async void OnViewCoverLetterClicked(object sender, EventArgs e)
-    {
-        if (sender is not Button { BindingContext: JobFeedItem job }) return;
-        await OpenDocumentAsync(job, DocumentKind.CoverLetter);
-    }
-
-    private async Task OpenDocumentAsync(JobFeedItem job, DocumentKind kind)
-    {
-        var token = await GitHubAccountStore.GetAccessTokenAsync();
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            await DisplayAlertAsync("Sign in required", "Sign in with GitHub on the Integrations tab before opening documents.", "OK");
-            return;
-        }
-
-        var (owner, repo) = await GitHubAccountStore.GetSelectedRepositoryAsync();
-        var title = kind == DocumentKind.Resume ? "Resume" : "Cover letter";
-        var subtitle = $"{job.Title} · {job.Company}";
-        var candidates = BuildDocumentPaths(job, kind);
-
-        if (candidates.Count == 0)
-        {
-            await Navigation.PushAsync(new DocumentViewerPage(
-                title,
-                subtitle,
-                "No document path is available for this job in the feed."));
-            return;
-        }
-
-        StatusLabel.Text = $"Loading {title.ToLowerInvariant()}…";
-        Exception? lastError = null;
-        foreach (var path in candidates)
-        {
-            try
-            {
-                var text = await _dataService.ReadTextFileAsync(path, token, owner, repo);
-                if (string.IsNullOrWhiteSpace(text))
-                {
-                    lastError = new InvalidOperationException("The file was empty.");
-                    continue;
-                }
-
-                StatusLabel.Text = $"Opened {title.ToLowerInvariant()} from {path}.";
-                await Navigation.PushAsync(new DocumentViewerPage(title, subtitle, $"{owner}/{repo}/{path}", text));
-                return;
-            }
-            catch (Exception ex)
-            {
-                lastError = ex;
-            }
-        }
-
-        StatusLabel.Text = $"Could not open {title.ToLowerInvariant()}.";
-        var detail = lastError?.Message ?? "File not found in the data repository.";
-        await Navigation.PushAsync(new DocumentViewerPage(
-            title,
-            subtitle,
-            $"Could not read this document from {owner}/{repo}. Tried: {string.Join(", ", candidates)}. {detail}"));
-    }
-
-    private static List<string> BuildDocumentPaths(JobFeedItem job, DocumentKind kind)
-    {
-        var paths = new List<string>();
-        var preferred = kind == DocumentKind.Resume ? job.ResumePath : job.CoverLetterPath;
-        if (!string.IsNullOrWhiteSpace(preferred))
-            paths.Add(preferred.Trim().TrimStart('/'));
-
-        if (!string.IsNullOrWhiteSpace(job.JobId))
-        {
-            var fileName = kind == DocumentKind.Resume ? "resume.md" : "cover-letter.md";
-            var fallback = $"jobs/{job.JobId}/{fileName}";
-            if (!paths.Contains(fallback, StringComparer.OrdinalIgnoreCase))
-                paths.Add(fallback);
-        }
-
-        return paths;
-    }
-
-    private enum DocumentKind
-    {
-        Resume,
-        CoverLetter
     }
 
     private async void OnTrackApplicationClicked(object sender, EventArgs e)
@@ -242,7 +208,10 @@ public partial class MainPage : ContentPage
         try
         {
             var record = await _applicationTracker.TrackAsync(job);
-            await DisplayAlertAsync("Application tracker", $"Saved locally. Current stage: {record.Status}.", "OK");
+            await DisplayAlertAsync(
+                "Added to tracker",
+                $"{record.Title} at {record.Company} is now in your Application Tracker (stage: {record.Status}). Open the Tracker tab to update stage, notes, or follow-up.",
+                "OK");
         }
         catch
         {
