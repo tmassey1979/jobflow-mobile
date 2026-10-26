@@ -23,9 +23,7 @@
                         <Label Grid.Row="1" Grid.ColumnSpan="2" Text="Uses GitHub Device Login (browser). The app stores only the access token and the repository you select. No client secret is embedded." FontSize="12" TextColor="{StaticResource MutedInk}" />
                     </Grid>
 
-                    <Label Text="OAuth App client ID (public)" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
-                    <Entry x:Name="ClientIdEntry" Placeholder="GitHub OAuth App client ID" ClearButtonVisibility="WhileEditing" />
-                    <Label Text="One-time: create an OAuth App at github.com/settings/developers, enable Device Flow, paste the client ID here." FontSize="11" TextColor="{StaticResource MutedInk}" />
+                    <Label Text="GitHub sign-in is configured for this build. Tap below and approve the one-time device code in your browser." FontSize="12" TextColor="{StaticResource MutedInk}" />
 
                     <Button x:Name="SignInGitHubButton" Text="Sign in with GitHub" Clicked="OnSignInGitHubClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
                     <Button x:Name="ChooseRepoButton" Text="Choose data repository" Clicked="OnChooseRepoClicked" IsVisible="False" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
