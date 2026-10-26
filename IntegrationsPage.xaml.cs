@@ -14,7 +14,59 @@ public partial class IntegrationsPage : ContentPage
     public IntegrationsPage()
     {
         InitializeComponent();
-        _ = RefreshConnectionStateAsync();
+        _ = InitializeConnectionAsync();
+    }
+
+    private async Task InitializeConnectionAsync()
+    {
+        await RefreshConnectionStateAsync();
+        await ResumePendingLoginAsync();
+    }
+
+    private async Task ResumePendingLoginAsync()
+    {
+        try
+        {
+            var existingToken = await GitHubAccountStore.GetAccessTokenAsync();
+            if (!string.IsNullOrWhiteSpace(existingToken)) return;
+
+            var pending = await GitHubAccountStore.GetPendingDeviceLoginAsync();
+            if (pending is null) return;
+            var remaining = (int)Math.Ceiling((pending.ExpiresAtUtc - DateTimeOffset.UtcNow).TotalSeconds);
+            if (remaining <= 0)
+            {
+                GitHubAccountStore.ClearPendingDeviceLogin();
+                GitHubStateLabel.Text = "Sign-in expired";
+                GitHubDetailsLabel.Text = "The pending GitHub approval expired while JobFlow was closed. Tap Sign in with GitHub to start again.";
+                return;
+            }
+
+            var clientId = GitHubAccountStore.DefaultClientId;
+            var authorization = new GitHubAuthService.DeviceAuthorization(
+                pending.DeviceCode, pending.UserCode, pending.VerificationUri,
+                pending.IntervalSeconds, remaining);
+            GitHubStateLabel.Text = "Finishing GitHub sign-in…";
+            GitHubDetailsLabel.Text = "Resuming the pending GitHub approval. Please wait here.";
+            SignInGitHubButton.IsEnabled = false;
+            var token = await _authService.WaitForAccessTokenAsync(clientId, authorization, null);
+            await GitHubAccountStore.SetAccessTokenAsync(token);
+            GitHubAccountStore.ClearPendingDeviceLogin();
+            GitHubStateLabel.Text = "Signed in · choose repo";
+            GitHubDetailsLabel.Text = "GitHub approval completed and the session was saved. Choose your data repository.";
+            ChooseRepoButton.IsVisible = true;
+            DisconnectGitHubButton.IsVisible = true;
+            await ChooseAndSaveRepositoryAsync(token);
+        }
+        catch (Exception ex)
+        {
+            GitHubStateLabel.Text = "Sign-in needs retry";
+            GitHubDetailsLabel.Text = $"Could not resume GitHub sign-in ({ex.GetType().Name}). Tap Sign in with GitHub to start again.";
+            GitHubAccountStore.ClearPendingDeviceLogin();
+        }
+        finally
+        {
+            SignInGitHubButton.IsEnabled = true;
+        }
     }
 
     private async Task RefreshConnectionStateAsync()
@@ -88,8 +140,13 @@ public partial class IntegrationsPage : ContentPage
             }
 
             var progress = new Progress<string>(message => GitHubDetailsLabel.Text = message);
+            await GitHubAccountStore.SavePendingDeviceLoginAsync(new GitHubAccountStore.PendingDeviceLogin(
+                authorization.DeviceCode, authorization.UserCode, authorization.VerificationUri,
+                authorization.IntervalSeconds, DateTimeOffset.UtcNow.AddSeconds(authorization.ExpiresInSeconds)));
+
             var accessToken = await _authService.WaitForAccessTokenAsync(clientId, authorization, progress, cancellation);
             await GitHubAccountStore.SetAccessTokenAsync(accessToken);
+            GitHubAccountStore.ClearPendingDeviceLogin();
 
             DeviceCodeLabel.IsVisible = false;
             CopyDeviceCodeButton.IsVisible = false;
@@ -102,6 +159,7 @@ public partial class IntegrationsPage : ContentPage
         }
         catch (OperationCanceledException)
         {
+            GitHubAccountStore.ClearPendingDeviceLogin();
             GitHubStateLabel.Text = "Sign-in canceled";
             GitHubDetailsLabel.Text = "GitHub sign-in was canceled.";
             DeviceCodeLabel.IsVisible = false;
@@ -109,6 +167,7 @@ public partial class IntegrationsPage : ContentPage
         }
         catch (Exception ex)
         {
+            GitHubAccountStore.ClearPendingDeviceLogin();
             _gitHubConnection.MarkFailed("Sign-in failed.");
             GitHubStateLabel.Text = "Sign-in failed";
             GitHubDetailsLabel.Text = $"Sign-in or session save failed ({ex.GetType().Name}). No access token is shown here. Try again; if this repeats, report the error type.";
