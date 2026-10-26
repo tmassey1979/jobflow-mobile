@@ -28,7 +28,13 @@ public partial class IntegrationsPage : ContentPage
         try
         {
             var existingToken = await GitHubAccountStore.GetAccessTokenAsync();
-            if (!string.IsNullOrWhiteSpace(existingToken)) return;
+            if (!string.IsNullOrWhiteSpace(existingToken))
+            {
+                // Confirm existing session is real before skipping resume.
+                var profile = await _authService.GetAuthenticatedUserAsync(existingToken);
+                if (profile is not null) return;
+                await GitHubAccountStore.ClearSessionAsync();
+            }
 
             var pending = await GitHubAccountStore.GetPendingDeviceLoginAsync();
             if (pending is null) return;
@@ -41,7 +47,7 @@ public partial class IntegrationsPage : ContentPage
                 return;
             }
 
-            var clientId = GitHubAccountStore.DefaultClientId;
+            var clientId = await GitHubAccountStore.GetClientIdAsync();
             var authorization = new GitHubAuthService.DeviceAuthorization(
                 pending.DeviceCode, pending.UserCode, pending.VerificationUri,
                 pending.IntervalSeconds, remaining);
@@ -55,16 +61,7 @@ public partial class IntegrationsPage : ContentPage
 
             var progress = new Progress<string>(message => MainThread.BeginInvokeOnMainThread(() => GitHubDetailsLabel.Text = message));
             var token = await _authService.WaitForAccessTokenAsync(clientId, authorization, progress);
-            await GitHubAccountStore.SetAccessTokenAsync(token);
-            GitHubAccountStore.ClearPendingDeviceLogin();
-
-            DeviceCodeLabel.IsVisible = false;
-            CopyDeviceCodeButton.IsVisible = false;
-            GitHubStateLabel.Text = "Signed in · choose repo";
-            GitHubDetailsLabel.Text = "GitHub approval completed. Choose your data repository.";
-            ChooseRepoButton.IsVisible = true;
-            DisconnectGitHubButton.IsVisible = true;
-            await ChooseAndSaveRepositoryAsync(token);
+            await CompleteSignInAsync(token);
         }
         catch (Exception ex)
         {
@@ -89,30 +86,70 @@ public partial class IntegrationsPage : ContentPage
 
             if (string.IsNullOrWhiteSpace(token))
             {
-                GitHubStateLabel.Text = "Not signed in";
-                GitHubDetailsLabel.Text = "Tap Sign in with GitHub, approve in the browser, then choose your data repository.";
-                ChooseRepoButton.IsVisible = false;
-                DisconnectGitHubButton.IsVisible = false;
-                DeviceCodeLabel.IsVisible = false;
-                CopyDeviceCodeButton.IsVisible = false;
+                ShowSignedOut();
                 return;
             }
 
-            GitHubStateLabel.Text = "Signed in";
-            GitHubDetailsLabel.Text = $"Session saved on this device. Data repository: {owner}/{repo}. Use Choose data repository to change it.";
+            // Prove the stored token still works — never show "Signed in" for a dead token.
+            GitHubStateLabel.Text = "Checking session…";
+            GitHubDetailsLabel.Text = "Verifying GitHub access…";
+            var profile = await _authService.GetAuthenticatedUserAsync(token);
+            if (profile is null)
+            {
+                await GitHubAccountStore.ClearSessionAsync();
+                GitHubStateLabel.Text = "Session expired";
+                GitHubDetailsLabel.Text = "The saved GitHub token is no longer valid. Tap Sign in with GitHub again.";
+                ChooseRepoButton.IsVisible = false;
+                DisconnectGitHubButton.IsVisible = false;
+                return;
+            }
+
+            await GitHubAccountStore.SetLoginAsync(profile.Login);
+            GitHubStateLabel.Text = $"Signed in · @{profile.Login}";
+            GitHubDetailsLabel.Text = $"Session verified. Data repository: {owner}/{repo}. Use Choose data repository to change it.";
             ChooseRepoButton.IsVisible = true;
             DisconnectGitHubButton.IsVisible = true;
         }
         catch (Exception ex)
         {
-            GitHubStateLabel.Text = "Storage unavailable";
-            GitHubDetailsLabel.Text = $"Android Secure Storage error: {ex.GetType().Name}. Restart the app and try again.";
+            GitHubStateLabel.Text = "Could not verify";
+            GitHubDetailsLabel.Text = UserSafeMessage(ex);
         }
+    }
+
+    private void ShowSignedOut()
+    {
+        GitHubStateLabel.Text = "Not signed in";
+        GitHubDetailsLabel.Text = "Tap Sign in with GitHub, approve in the browser, then choose your data repository.";
+        ChooseRepoButton.IsVisible = false;
+        DisconnectGitHubButton.IsVisible = false;
+        DeviceCodeLabel.IsVisible = false;
+        CopyDeviceCodeButton.IsVisible = false;
+    }
+
+    private async Task CompleteSignInAsync(string accessToken)
+    {
+        var profile = await _authService.GetAuthenticatedUserAsync(accessToken);
+        if (profile is null)
+            throw new InvalidOperationException("GitHub did not accept the new session. Try signing in again.");
+
+        await GitHubAccountStore.SetAccessTokenAsync(accessToken);
+        await GitHubAccountStore.SetLoginAsync(profile.Login);
+        GitHubAccountStore.ClearPendingDeviceLogin();
+
+        DeviceCodeLabel.IsVisible = false;
+        CopyDeviceCodeButton.IsVisible = false;
+        GitHubStateLabel.Text = $"Signed in · @{profile.Login}";
+        GitHubDetailsLabel.Text = "GitHub session verified. Next, choose which repository holds your job feed.";
+        ChooseRepoButton.IsVisible = true;
+        DisconnectGitHubButton.IsVisible = true;
+
+        await ChooseAndSaveRepositoryAsync(accessToken);
     }
 
     private async void OnSignInGitHubClicked(object sender, EventArgs e)
     {
-        var clientId = GitHubAccountStore.DefaultClientId;
+        var clientId = await GitHubAccountStore.GetClientIdAsync();
 
         SignInGitHubButton.IsEnabled = false;
         _loginCts?.Cancel();
@@ -143,7 +180,6 @@ public partial class IntegrationsPage : ContentPage
             GitHubDetailsLabel.Text =
                 $"Code {authorization.UserCode} — enter it at github.com/login/device if the browser does not show it. Keep JobFlow open while you approve.";
 
-            // Persist before opening the browser; Android may pause/kill this activity.
             await GitHubAccountStore.SavePendingDeviceLoginAsync(new GitHubAccountStore.PendingDeviceLogin(
                 authorization.DeviceCode, authorization.UserCode, authorization.VerificationUri,
                 authorization.IntervalSeconds, DateTimeOffset.UtcNow.AddSeconds(authorization.ExpiresInSeconds)));
@@ -160,17 +196,7 @@ public partial class IntegrationsPage : ContentPage
 
             var progress = new Progress<string>(message => MainThread.BeginInvokeOnMainThread(() => GitHubDetailsLabel.Text = message));
             var accessToken = await _authService.WaitForAccessTokenAsync(clientId, authorization, progress, cancellation);
-            await GitHubAccountStore.SetAccessTokenAsync(accessToken);
-            GitHubAccountStore.ClearPendingDeviceLogin();
-
-            DeviceCodeLabel.IsVisible = false;
-            CopyDeviceCodeButton.IsVisible = false;
-            GitHubStateLabel.Text = "Signed in · choose repo";
-            GitHubDetailsLabel.Text = "GitHub approved the sign-in. Next, choose which repository holds your job feed.";
-            ChooseRepoButton.IsVisible = true;
-            DisconnectGitHubButton.IsVisible = true;
-
-            await ChooseAndSaveRepositoryAsync(accessToken);
+            await CompleteSignInAsync(accessToken);
         }
         catch (OperationCanceledException)
         {
@@ -182,8 +208,6 @@ public partial class IntegrationsPage : ContentPage
         }
         catch (Exception ex)
         {
-            // Keep pending login if we are still within the approval window and the failure
-            // looks transient; otherwise clear so the user can start clean.
             var message = UserSafeMessage(ex);
             if (message.Contains("expired", StringComparison.OrdinalIgnoreCase)
                 || message.Contains("denied", StringComparison.OrdinalIgnoreCase)
@@ -249,9 +273,15 @@ public partial class IntegrationsPage : ContentPage
         {
             repos = await _authService.ListRepositoriesAsync(accessToken);
         }
-        catch
+        catch (Exception ex)
         {
-            await DisplayAlertAsync("Couldn't list repositories", "GitHub did not return your repository list. Sign in again.", "OK");
+            var msg = UserSafeMessage(ex);
+            if (msg.Contains("invalid or expired", StringComparison.OrdinalIgnoreCase))
+            {
+                await GitHubAccountStore.ClearSessionAsync();
+                ShowSignedOut();
+            }
+            await DisplayAlertAsync("Couldn't list repositories", msg, "OK");
             return;
         }
 
@@ -278,7 +308,8 @@ public partial class IntegrationsPage : ContentPage
         {
             var feed = await _dataService.LoadLatestFeedAsync(accessToken, match.Owner, match.Name);
             _gitHubConnection.MarkConnected(new[] { "repo (read selected data repository)" }, DateTimeOffset.UtcNow);
-            GitHubStateLabel.Text = "Connected";
+            var login = await GitHubAccountStore.GetLoginAsync();
+            GitHubStateLabel.Text = string.IsNullOrWhiteSpace(login) ? "Connected" : $"Connected · @{login}";
             GitHubDetailsLabel.Text =
                 $"Using {match.FullName}. Feed OK — {feed.Jobs.Count} jobs from {feed.SourcePath ?? "daily feed"}.";
         }
@@ -308,11 +339,7 @@ public partial class IntegrationsPage : ContentPage
         {
             await GitHubAccountStore.ClearSessionAsync();
             _gitHubConnection.Disconnect();
-            DeviceCodeLabel.IsVisible = false;
-            CopyDeviceCodeButton.IsVisible = false;
-            ChooseRepoButton.IsVisible = false;
-            DisconnectGitHubButton.IsVisible = false;
-            GitHubStateLabel.Text = "Not signed in";
+            ShowSignedOut();
             GitHubDetailsLabel.Text = "GitHub session removed from this device.";
         }
         catch
@@ -332,7 +359,6 @@ public partial class IntegrationsPage : ContentPage
         if (string.IsNullOrWhiteSpace(text))
             return "GitHub sign-in failed. Try again.";
 
-        // Never surface tokens or long opaque payloads.
         if (text.Contains("gho_", StringComparison.OrdinalIgnoreCase)
             || text.Contains("access_token", StringComparison.OrdinalIgnoreCase))
             return "GitHub sign-in failed while saving the session. Try again.";
