@@ -37,7 +37,7 @@ public partial class IntegrationsPage : ContentPage
             {
                 GitHubAccountStore.ClearPendingDeviceLogin();
                 GitHubStateLabel.Text = "Sign-in expired";
-                GitHubDetailsLabel.Text = "The pending GitHub approval expired while JobFlow was closed. Tap Sign in with GitHub to start again.";
+                GitHubDetailsLabel.Text = "The pending GitHub approval expired. Tap Sign in with GitHub to start again.";
                 return;
             }
 
@@ -45,14 +45,23 @@ public partial class IntegrationsPage : ContentPage
             var authorization = new GitHubAuthService.DeviceAuthorization(
                 pending.DeviceCode, pending.UserCode, pending.VerificationUri,
                 pending.IntervalSeconds, remaining);
+
+            DeviceCodeLabel.Text = pending.UserCode;
+            DeviceCodeLabel.IsVisible = true;
+            CopyDeviceCodeButton.IsVisible = true;
             GitHubStateLabel.Text = "Finishing GitHub sign-in…";
-            GitHubDetailsLabel.Text = "Resuming the pending GitHub approval. Please wait here.";
+            GitHubDetailsLabel.Text = $"Still waiting for approval of code {pending.UserCode}. Keep this screen open.";
             SignInGitHubButton.IsEnabled = false;
-            var token = await _authService.WaitForAccessTokenAsync(clientId, authorization, null);
+
+            var progress = new Progress<string>(message => MainThread.BeginInvokeOnMainThread(() => GitHubDetailsLabel.Text = message));
+            var token = await _authService.WaitForAccessTokenAsync(clientId, authorization, progress);
             await GitHubAccountStore.SetAccessTokenAsync(token);
             GitHubAccountStore.ClearPendingDeviceLogin();
+
+            DeviceCodeLabel.IsVisible = false;
+            CopyDeviceCodeButton.IsVisible = false;
             GitHubStateLabel.Text = "Signed in · choose repo";
-            GitHubDetailsLabel.Text = "GitHub approval completed and the session was saved. Choose your data repository.";
+            GitHubDetailsLabel.Text = "GitHub approval completed. Choose your data repository.";
             ChooseRepoButton.IsVisible = true;
             DisconnectGitHubButton.IsVisible = true;
             await ChooseAndSaveRepositoryAsync(token);
@@ -60,8 +69,10 @@ public partial class IntegrationsPage : ContentPage
         catch (Exception ex)
         {
             GitHubStateLabel.Text = "Sign-in needs retry";
-            GitHubDetailsLabel.Text = $"Could not resume GitHub sign-in ({ex.GetType().Name}). Tap Sign in with GitHub to start again.";
+            GitHubDetailsLabel.Text = UserSafeMessage(ex);
             GitHubAccountStore.ClearPendingDeviceLogin();
+            DeviceCodeLabel.IsVisible = false;
+            CopyDeviceCodeButton.IsVisible = false;
         }
         finally
         {
@@ -83,6 +94,7 @@ public partial class IntegrationsPage : ContentPage
                 ChooseRepoButton.IsVisible = false;
                 DisconnectGitHubButton.IsVisible = false;
                 DeviceCodeLabel.IsVisible = false;
+                CopyDeviceCodeButton.IsVisible = false;
                 return;
             }
 
@@ -94,7 +106,7 @@ public partial class IntegrationsPage : ContentPage
         catch (Exception ex)
         {
             GitHubStateLabel.Text = "Storage unavailable";
-            GitHubDetailsLabel.Text = $"Android Secure Storage error: {ex.GetType().Name}. Try restarting the app; if it continues, clear app storage only after checking whether you need to preserve local data.";
+            GitHubDetailsLabel.Text = $"Android Secure Storage error: {ex.GetType().Name}. Restart the app and try again.";
         }
     }
 
@@ -117,21 +129,21 @@ public partial class IntegrationsPage : ContentPage
             DeviceCodeLabel.Text = authorization.UserCode;
             DeviceCodeLabel.IsVisible = true;
             CopyDeviceCodeButton.IsVisible = true;
+
             try
             {
                 await Clipboard.Default.SetTextAsync(authorization.UserCode);
-                GitHubDetailsLabel.Text = "Activation code copied. Enter it at GitHub in the browser to approve access.";
             }
             catch
             {
-                GitHubDetailsLabel.Text = "Copy the activation code below, then enter it at GitHub in the browser to approve access.";
+                // Optional; user can still read the code on screen.
             }
+
             GitHubStateLabel.Text = "Approve in browser";
             GitHubDetailsLabel.Text =
-                $"Enter code {authorization.UserCode} at {authorization.VerificationUri}, then approve access. JobFlow waits here automatically.";
+                $"Code {authorization.UserCode} — enter it at github.com/login/device if the browser does not show it. Keep JobFlow open while you approve.";
 
-            // Save the short-lived device authorization BEFORE opening the browser.
-            // Android may reclaim this activity while the user approves in GitHub.
+            // Persist before opening the browser; Android may pause/kill this activity.
             await GitHubAccountStore.SavePendingDeviceLoginAsync(new GitHubAccountStore.PendingDeviceLogin(
                 authorization.DeviceCode, authorization.UserCode, authorization.VerificationUri,
                 authorization.IntervalSeconds, DateTimeOffset.UtcNow.AddSeconds(authorization.ExpiresInSeconds)));
@@ -142,10 +154,11 @@ public partial class IntegrationsPage : ContentPage
             }
             catch
             {
-                // User can open the URL manually from the label text.
+                GitHubDetailsLabel.Text =
+                    $"Open github.com/login/device and enter code {authorization.UserCode}. Keep JobFlow open.";
             }
 
-            var progress = new Progress<string>(message => GitHubDetailsLabel.Text = message);
+            var progress = new Progress<string>(message => MainThread.BeginInvokeOnMainThread(() => GitHubDetailsLabel.Text = message));
             var accessToken = await _authService.WaitForAccessTokenAsync(clientId, authorization, progress, cancellation);
             await GitHubAccountStore.SetAccessTokenAsync(accessToken);
             GitHubAccountStore.ClearPendingDeviceLogin();
@@ -169,13 +182,22 @@ public partial class IntegrationsPage : ContentPage
         }
         catch (Exception ex)
         {
-            GitHubAccountStore.ClearPendingDeviceLogin();
+            // Keep pending login if we are still within the approval window and the failure
+            // looks transient; otherwise clear so the user can start clean.
+            var message = UserSafeMessage(ex);
+            if (message.Contains("expired", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("denied", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("Device Flow", StringComparison.OrdinalIgnoreCase))
+            {
+                GitHubAccountStore.ClearPendingDeviceLogin();
+            }
+
             _gitHubConnection.MarkFailed("Sign-in failed.");
             GitHubStateLabel.Text = "Sign-in failed";
-            GitHubDetailsLabel.Text = $"Sign-in or session save failed ({ex.GetType().Name}). No access token is shown here. Try again; if this repeats, report the error type.";
+            GitHubDetailsLabel.Text = message;
             DeviceCodeLabel.IsVisible = false;
             CopyDeviceCodeButton.IsVisible = false;
-            await DisplayAlertAsync("Couldn't complete GitHub sign-in", $"GitHub approval or secure session storage failed ({ex.GetType().Name}). No token was displayed. Try again; if it repeats, tell me this error type.", "OK");
+            await DisplayAlertAsync("Couldn't complete GitHub sign-in", message, "OK");
         }
         finally
         {
@@ -191,11 +213,11 @@ public partial class IntegrationsPage : ContentPage
         try
         {
             await Clipboard.Default.SetTextAsync(code);
-            GitHubDetailsLabel.Text = "Activation code copied. Return to the GitHub browser page and paste it there.";
+            GitHubDetailsLabel.Text = "Activation code copied. Paste it on github.com/login/device.";
         }
         catch
         {
-            await DisplayAlertAsync("Could not copy code", "Your device clipboard was unavailable. You can read the activation code displayed above and enter it manually.", "OK");
+            await DisplayAlertAsync("Could not copy code", "Clipboard was unavailable. Type the code shown above into GitHub.", "OK");
         }
     }
 
@@ -287,6 +309,7 @@ public partial class IntegrationsPage : ContentPage
             await GitHubAccountStore.ClearSessionAsync();
             _gitHubConnection.Disconnect();
             DeviceCodeLabel.IsVisible = false;
+            CopyDeviceCodeButton.IsVisible = false;
             ChooseRepoButton.IsVisible = false;
             DisconnectGitHubButton.IsVisible = false;
             GitHubStateLabel.Text = "Not signed in";
@@ -296,5 +319,22 @@ public partial class IntegrationsPage : ContentPage
         {
             await DisplayAlertAsync("Couldn't sign out", "Secure Storage could not clear the session.", "OK");
         }
+    }
+
+    private static string UserSafeMessage(Exception ex)
+    {
+        var text = ex.Message?.Trim();
+        if (string.IsNullOrWhiteSpace(text))
+            return "GitHub sign-in failed. Try again.";
+
+        // Never surface tokens or long opaque payloads.
+        if (text.Contains("gho_", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("access_token", StringComparison.OrdinalIgnoreCase))
+            return "GitHub sign-in failed while saving the session. Try again.";
+
+        if (text.Length > 280)
+            text = text[..277] + "…";
+
+        return text;
     }
 }

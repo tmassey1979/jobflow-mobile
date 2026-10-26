@@ -4,31 +4,40 @@
 
 JobFlow does **not** ask you to paste a personal access token.
 
-### OAuth App
+### OAuth App checklist (required)
 
-This build ships with the public Client ID for the JobFlow Mobile OAuth App.
-Device Flow must stay enabled on that app:
+1. Open [GitHub → Settings → Developer settings → OAuth Apps](https://github.com/settings/developers)
+2. Open the **JobFlow Mobile** app (Client ID starts with `Ov23li…`)
+3. Turn **ON** **Device Flow**
+4. Do **not** put a client secret in the mobile app
 
-1. [GitHub → Settings → Developer settings → OAuth Apps](https://github.com/settings/developers)
-2. Open the JobFlow Mobile app → **Enable Device Flow**
-3. Client ID is public (already in the app). Do **not** put a client secret in the app.
+If Device Flow is off, sign-in fails immediately with a clear error in the app.
 
 ### In the app
 
-1. Open **Integrations**.
-2. Tap **Sign in with GitHub** (Client ID is prefilled).
-3. GitHub shows a short code; the browser opens `github.com/login/device`.
-4. Enter the code and approve access.
-5. Choose your **data repository** (for example `tmassey1979/Jobflow-data`).
-6. JobFlow tests a read of `daily/YYYY-MM-DD.json` in that repository.
+1. **Integrations** → **Sign in with GitHub**
+2. A one-time code appears (and is copied when possible)
+3. Browser opens `github.com/login/device` (code may be prefilled)
+4. Approve access on GitHub
+5. Return to JobFlow and **keep the Integrations screen open** until it says signed in
+6. **Choose data repository** (for example `tmassey1979/Jobflow-data`)
+7. **Jobs** → Load latest jobs
+
+If Android closes JobFlow while you are in the browser, reopen the app — it will try to finish a still-valid pending approval.
+
+### Common failures
+
+| Symptom | Fix |
+|--------|-----|
+| Sign-in fails immediately | Enable **Device Flow** on the OAuth App |
+| Code expires | Tap Sign in again and approve within ~15 minutes |
+| Denied | Approve the permission prompt on GitHub |
+| Repo list empty | Sign in with the account that owns `Jobflow-data` |
+| Feed issue after repo pick | Confirm `daily/YYYY-MM-DD.json` exists in that repo |
 
 ### Scopes
 
-Classic OAuth Apps need the `repo` scope to read **private** repository contents. JobFlow only calls the repository you select afterward. It does not write to GitHub, submit applications, or contact employers.
-
-### Sign out
-
-**Sign out of GitHub** clears the access token and selected repository from Secure Storage on this device.
+Classic OAuth Apps need the `repo` scope to read **private** repository contents. JobFlow only reads the repository you select afterward.
 
 ## Google Calendar
 
