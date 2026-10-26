@@ -30,7 +30,7 @@
       Include="Resources\Splash\splash.svg"
       Color="#1A1A1A"
       BaseSize="128,128" />
-    <!-- Empty-state illustration (referenced in XAML as empty_jobs.png) -->
     <MauiImage Include="Resources\Images\empty_jobs.svg" BaseSize="240,160" />
+    <MauiImage Include="Resources\Images\signal_mark.svg" BaseSize="108,108" />
   </ItemGroup>
 </Project>

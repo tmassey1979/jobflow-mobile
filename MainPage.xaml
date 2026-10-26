@@ -7,8 +7,13 @@
              BackgroundColor="{StaticResource PageBackground}">
     <Grid RowDefinitions="Auto,*" Padding="20" RowSpacing="16">
         <VerticalStackLayout Grid.Row="0" Spacing="12">
-            <Label Text="JobFlow" FontSize="32" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
-            <Label Text="Your job search, in your pocket." FontSize="15" TextColor="{StaticResource MutedInk}" />
+            <Grid ColumnDefinitions="48,*" ColumnSpacing="12">
+                <Image Grid.Column="0" Source="signal_mark.png" WidthRequest="44" HeightRequest="44" Aspect="AspectFit" VerticalOptions="Center" SemanticProperties.Description="JobFlow Signal Mark logo" />
+                <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                    <Label Text="JobFlow" FontSize="30" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                    <Label Text="Your job search, in your pocket." FontSize="14" TextColor="{StaticResource MutedInk}" />
+                </VerticalStackLayout>
+            </Grid>
             <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="14" BackgroundColor="White">
                 <VerticalStackLayout Spacing="10">
                     <Label Text="Private job feed" FontAttributes="Bold" TextColor="{StaticResource Ink}" />

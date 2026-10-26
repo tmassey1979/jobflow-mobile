@@ -7,14 +7,21 @@
              BackgroundColor="{StaticResource PageBackground}">
     <Grid RowDefinitions="Auto,*" Padding="20" RowSpacing="14">
         <VerticalStackLayout Grid.Row="0" Spacing="8">
-            <Label Text="Application tracker" FontSize="28" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
-            <Label Text="Track progress privately on this device. Nothing is submitted or sent for you." FontSize="13" TextColor="{StaticResource MutedInk}" />
+            <Grid ColumnDefinitions="44,*" ColumnSpacing="10">
+                <Image Grid.Column="0" Source="signal_mark.png" WidthRequest="40" HeightRequest="40" Aspect="AspectFit" VerticalOptions="Center" SemanticProperties.Description="JobFlow Signal Mark logo" />
+                <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                    <Label Text="Application tracker" FontSize="26" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                    <Label Text="Track progress privately on this device." FontSize="13" TextColor="{StaticResource MutedInk}" />
+                </VerticalStackLayout>
+            </Grid>
+            <Label Text="Nothing is submitted or sent for you." FontSize="12" TextColor="{StaticResource MutedInk}" />
             <Label x:Name="SummaryLabel" Text="No applications tracked yet." FontSize="13" FontAttributes="Bold" TextColor="{StaticResource Accent}" />
             <SearchBar x:Name="SearchEntry" Placeholder="Search tracked jobs or companies" TextChanged="OnSearchTextChanged" BackgroundColor="White" />
         </VerticalStackLayout>
         <CollectionView x:Name="ApplicationsCollection" Grid.Row="1" SelectionMode="None">
             <CollectionView.EmptyView>
                 <VerticalStackLayout Padding="24" Spacing="8" HorizontalOptions="Center" VerticalOptions="Center">
+                    <Image Source="empty_jobs.png" WidthRequest="160" HeightRequest="107" Aspect="AspectFit" HorizontalOptions="Center" SemanticProperties.Description="JobFlow empty-state illustration" />
                     <Label x:Name="EmptyTitleLabel" Text="Your tracker starts here" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" HorizontalTextAlignment="Center" />
                     <Label x:Name="EmptyDescriptionLabel" Text="Use Track application on any job card to add it to your pipeline." TextColor="{StaticResource MutedInk}" HorizontalTextAlignment="Center" />
                 </VerticalStackLayout>

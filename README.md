@@ -4,58 +4,61 @@ Private, Android-only JobFlow app built with .NET MAUI and C#.
 
 ## What works today
 
-- **Jobs tab** — connect with a fine-grained GitHub token, load the latest `daily/YYYY-MM-DD.json` feed from `tmassey1979/Jobflow-data`, open HTTPS application links, track a job locally.
+- **Jobs tab** — connect with GitHub Device Login, load the latest `daily/YYYY-MM-DD.json` feed from `tmassey1979/Jobflow-data`, open HTTPS application links, and track a job locally.
 - **Applications tab** — search, set stage, notes, and follow-up dates (device-local SQLite only).
-- **Integrations tab** — save/test/disconnect the GitHub token (Secure Storage).
+- **Integrations tab** — sign in through the browser, choose a repository, and disconnect the GitHub session.
 - **Offline** — last successful feed is cached locally; app still opens without network.
 
 No applications are submitted and nothing is written back to GitHub.
 
-## Install a CI build (fastest path)
+## Install the latest release
 
-1. Open the latest green **Android build** on `main`:
-   https://github.com/tmassey1979/jobflow-mobile/actions/workflows/android.yml
-2. Download the **jobflow-mobile-android-apk** artifact.
-3. Unzip and install on a device or emulator:
+1. Open [Releases](https://github.com/tmassey1979/jobflow-mobile/releases).
+2. Download the single file named `JobFlow-Mobile-vX.Y.Z.apk`.
+3. Open that APK on the Android phone and allow your file manager to install unknown apps if prompted.
 
-```sh
-adb install -r path/to/*.apk
+Each successful push to `main` runs contract and integration tests, builds the Android APK, increments the patch version, and publishes a GitHub Release with the versioned APK. Pull requests and manual runs build test APKs but do not publish releases. The build uploads only the signed APK; the unsigned package is removed to prevent accidentally installing the wrong file.
+
+## One-time release signing setup
+
+A stable signing key is required so Android will accept future APKs as updates to the previously installed release. Do not commit the keystore or passwords to the repository.
+
+Create a release keystore on a trusted computer with a JDK installed:
+
+```powershell
+keytool -genkeypair -v -keystore jobflow-release.keystore -alias jobflow -keyalg RSA -keysize 2048 -validity 10000
+$bytes = [System.IO.File]::ReadAllBytes("jobflow-release.keystore")
+[Convert]::ToBase64String($bytes) | Set-Clipboard
 ```
 
-On the phone: enable **Install unknown apps** for your file manager / adb if prompted.
+In the private repository, open **Settings → Secrets and variables → Actions → New repository secret** and add:
 
-## Run from source
+- `ANDROID_SIGNING_KEYSTORE_BASE64` — the Base64 value copied above
+- `ANDROID_KEYSTORE_PASSWORD` — the keystore password chosen in keytool
+- `ANDROID_KEY_ALIAS` — `jobflow`
+- `ANDROID_KEY_PASSWORD` — the key password chosen in keytool
 
-Install the .NET 10 SDK and the MAUI Android workload:
+Keep a secure backup of the keystore and passwords. GitHub Actions will use these secrets for signed releases. Until these are configured, CI still builds a signed test APK artifact, but it deliberately blocks publishing a release so updates cannot silently ship with an unstable signing identity.
 
-```sh
-dotnet workload install maui-android
-dotnet restore JobFlow.Mobile.csproj
-dotnet build JobFlow.Mobile.csproj -f net10.0-android -c Debug
-```
-
-Deploy to a connected device/emulator:
-
-```sh
-dotnet build JobFlow.Mobile.csproj -f net10.0-android -t:Install -p:AndroidDeviceSerial=<device-id>
-# or publish an APK:
-dotnet publish JobFlow.Mobile.csproj -f net10.0-android -c Release -p:AndroidPackageFormat=apk -o artifacts/apk
-adb install -r artifacts/apk/*.apk
-```
+If you previously installed an APK signed with the temporary CI debug key, uninstall that test build before installing the first stable-signed release. Uninstalling removes local app data.
 
 ## First-run checklist
 
-1. Create a **fine-grained** GitHub PAT with **Contents: Read-only** on **`tmassey1979/Jobflow-data` only**.
-2. Open the app → **Integrations** (or the Jobs connect card) → paste token → **Connect / Load**.
-3. Confirm jobs appear. Token is stored in Android Secure Storage; it is never logged or committed.
-4. Use **Track application** on a job card, then open the **Applications** tab.
+1. Open the app → **Integrations** → **Sign in with GitHub**.
+2. Approve access in the browser and choose the private data repository.
+3. Confirm jobs appear on the Jobs tab.
+4. Use **Track application** on a job card, then open the Applications tab.
 
-Revoke the token in GitHub settings when finished testing.
+The app reads the private daily feed. Recruiter outreach, form submission, and writes back to GitHub are not implemented.
 
-## Private data access
+## Graphics
 
-The app reads `daily/*.json` from the private data repository. Writes, recruiter outreach, and form submission are **not** implemented.
+- Launcher icon: adaptive charcoal background plus blue Signal Mark foreground.
+- Splash screen: centered Signal Mark on charcoal.
+- In-app branding: the Signal Mark is shown on Jobs, Applications, and Integrations.
+- Empty state: the original empty-jobs illustration is reused for Jobs and Applications.
+- Runtime graphics are source-controlled SVGs converted by MAUI's asset pipeline; no remote graphics or raster intermediates are required.
 
 ## CI
 
-GitHub Actions builds the Android target, runs contract + integration tests, and uploads an APK artifact. Builds verify compilation; they do not sign a Play Store release.
+GitHub Actions runs the feed contract tests and offline database/application workflow tests, builds the Android target, and uploads a single installable APK artifact. Main-branch releases include the same versioned APK as a GitHub Release asset.

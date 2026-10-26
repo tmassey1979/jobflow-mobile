@@ -6,7 +6,13 @@
              BackgroundColor="{StaticResource PageBackground}">
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="16">
-            <Label Text="Integrations" FontSize="30" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+            <Grid ColumnDefinitions="44,*" ColumnSpacing="10">
+                <Image Grid.Column="0" Source="signal_mark.png" WidthRequest="40" HeightRequest="40" Aspect="AspectFit" VerticalOptions="Center" SemanticProperties.Description="JobFlow Signal Mark logo" />
+                <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                    <Label Text="Integrations" FontSize="28" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                    <Label Text="Connect the services JobFlow can read." FontSize="13" TextColor="{StaticResource MutedInk}" />
+                </VerticalStackLayout>
+            </Grid>
             <Label Text="Sign in with GitHub in the browser, then choose which private data repository JobFlow may read. No token paste." FontSize="14" TextColor="{StaticResource MutedInk}" />
 
             <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="16" BackgroundColor="White">

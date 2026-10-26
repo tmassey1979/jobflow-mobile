@@ -1,4 +1,4 @@
-name: Android build
+name: Android build and versioned release
 
 on:
   push:
@@ -8,9 +8,48 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: jobflow-mobile-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      version_code: ${{ steps.version.outputs.version_code }}
+    steps:
+      - name: Check out full history and tags
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Calculate app version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            latest_tag="$(git tag --list 'v[0-9]*' --sort=-version:refname | head -n 1)"
+            if [[ -z "$latest_tag" ]]; then
+              version="0.1.1"
+              version_code=2
+            else
+              current="${latest_tag#v}"
+              IFS='.' read -r major minor patch <<< "$current"
+              patch=$((patch + 1))
+              version="${major}.${minor}.${patch}"
+              release_count="$(git tag --list 'v[0-9]*' | wc -l | tr -d ' ')"
+              version_code=$((release_count + 2))
+            fi
+          else
+            version="0.1.0-ci.${GITHUB_RUN_NUMBER}"
+            version_code=$((GITHUB_RUN_NUMBER + 1000))
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
+          echo "Building JobFlow Mobile $version (Android version code $version_code)"
+
   contract-tests:
     runs-on: ubuntu-latest
     steps:
@@ -22,8 +61,11 @@ jobs:
           dotnet-version: 10.0.x
       - name: Run feed contract tests
         run: dotnet run --project tests/JobFlow.Mobile.ContractTests/JobFlow.Mobile.ContractTests.csproj --configuration Release
+      - name: Run offline database and application workflow tests
+        run: dotnet run --project tests/JobFlow.Mobile.IntegrationTests/JobFlow.Mobile.IntegrationTests.csproj --configuration Release
 
   build-android:
+    needs: version
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
@@ -34,14 +76,92 @@ jobs:
           dotnet-version: 10.0.x
       - name: Install MAUI Android workload
         run: dotnet workload install maui-android
+      - name: Configure stable signing when release secrets are available
+        id: signing
+        shell: bash
+        env:
+          ANDROID_SIGNING_KEYSTORE_BASE64: ${{ secrets.ANDROID_SIGNING_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [[ -z "$ANDROID_SIGNING_KEYSTORE_BASE64" || -z "$ANDROID_KEYSTORE_PASSWORD" || -z "$ANDROID_KEY_ALIAS" || -z "$ANDROID_KEY_PASSWORD" ]]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Stable signing secrets are not configured; this build will use the CI debug signing key."
+            exit 0
+          fi
+          printf '%s' "$ANDROID_SIGNING_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/jobflow-release.keystore"
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+          echo "keystore_path=$RUNNER_TEMP/jobflow-release.keystore" >> "$GITHUB_OUTPUT"
       - name: Restore
         run: dotnet restore JobFlow.Mobile.csproj
-      - name: Publish Android APK
-        run: dotnet publish JobFlow.Mobile.csproj -f net10.0-android -c Release -p:AndroidPackageFormat=apk -o artifacts/apk
-      - name: Upload APK artifact
+      - name: Publish signed APK with stable release key
+        if: steps.signing.outputs.configured == 'true'
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_PATH: ${{ steps.signing.outputs.keystore_path }}
+          APP_VERSION: ${{ needs.version.outputs.version }}
+          APP_VERSION_CODE: ${{ needs.version.outputs.version_code }}
+        run: |
+          dotnet publish JobFlow.Mobile.csproj -f net10.0-android -c Release -p:AndroidPackageFormat=apk -p:ApplicationDisplayVersion="$APP_VERSION" -p:ApplicationVersion="$APP_VERSION_CODE" -p:AndroidKeyStore=true -p:AndroidSigningKeyStore="$ANDROID_KEYSTORE_PATH" -p:AndroidSigningStorePass="$ANDROID_KEYSTORE_PASSWORD" -p:AndroidSigningKeyAlias="$ANDROID_KEY_ALIAS" -p:AndroidSigningKeyPass="$ANDROID_KEY_PASSWORD" -o artifacts/apk
+      - name: Publish APK with CI debug key (non-release fallback)
+        if: steps.signing.outputs.configured != 'true'
+        env:
+          APP_VERSION: ${{ needs.version.outputs.version }}
+          APP_VERSION_CODE: ${{ needs.version.outputs.version_code }}
+        run: dotnet publish JobFlow.Mobile.csproj -f net10.0-android -c Release -p:AndroidPackageFormat=apk -p:ApplicationDisplayVersion="$APP_VERSION" -p:ApplicationVersion="$APP_VERSION_CODE" -o artifacts/apk
+      - name: Keep only the signed, clearly versioned APK
+        shell: bash
+        env:
+          APP_VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          signed_apk="$(find artifacts/apk -maxdepth 1 -type f -name '*-Signed.apk' -print -quit)"
+          if [[ -z "$signed_apk" ]]; then
+            echo "::error::The signed APK was not produced. Build output:"
+            ls -la artifacts/apk
+            exit 1
+          fi
+          final_apk="artifacts/apk/JobFlow-Mobile-v${APP_VERSION}.apk"
+          cp "$signed_apk" "$final_apk"
+          find artifacts/apk -maxdepth 1 -type f -name '*.apk' ! -name "JobFlow-Mobile-v${APP_VERSION}.apk" -delete
+          ls -lh "$final_apk"
+      - name: Upload single installable APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: jobflow-mobile-android-apk
-          path: artifacts/apk/*.apk
+          path: artifacts/apk/JobFlow-Mobile-v*.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [version, contract-tests, build-android]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require stable signing for update-safe releases
+        shell: bash
+        env:
+          ANDROID_SIGNING_KEYSTORE_BASE64: ${{ secrets.ANDROID_SIGNING_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [[ -z "$ANDROID_SIGNING_KEYSTORE_BASE64" || -z "$ANDROID_KEYSTORE_PASSWORD" || -z "$ANDROID_KEY_ALIAS" || -z "$ANDROID_KEY_PASSWORD" ]]; then
+            echo "::error title=Release signing is not configured::Add the four Android signing repository secrets described in README.md. The APK build artifact is available, but a versioned release is blocked until stable signing is configured."
+            exit 1
+          fi
+      - name: Download installable APK
+        uses: actions/download-artifact@v4
+        with:
+          name: jobflow-mobile-android-apk
+          path: artifacts/release
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.version.outputs.version }}
+          name: JobFlow Mobile v${{ needs.version.outputs.version }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: artifacts/release/JobFlow-Mobile-v*.apk
