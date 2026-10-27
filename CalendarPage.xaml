@@ -9,7 +9,7 @@
         <VerticalStackLayout Spacing="6">
             <Label Text="Calendar" FontSize="22" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
             <Label x:Name="StatusLabel"
-                   Text="Local follow-ups from your Application Tracker."
+                   Text="Local follow-ups and Google Calendar (read-only)."
                    FontSize="12"
                    TextColor="{StaticResource MutedInk}" />
             <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
@@ -37,26 +37,28 @@
             <CollectionView x:Name="EventsCollection" SelectionMode="None">
                 <CollectionView.EmptyView>
                     <VerticalStackLayout Padding="24" Spacing="10" VerticalOptions="Center">
-                        <Label Text="No follow-ups yet"
+                        <Label Text="Nothing on the calendar yet"
                                FontSize="16"
                                FontAttributes="Bold"
                                TextColor="{StaticResource Ink}"
                                HorizontalTextAlignment="Center" />
-                        <Label Text="Track a job, then set a follow-up date on the Applications tab. Those dates appear here. Google Calendar can be added later from Integrations."
+                        <Label Text="Set follow-up dates on Applications, or connect Google Calendar on Integrations (read-only)."
                                FontSize="13"
                                TextColor="{StaticResource MutedInk}"
                                HorizontalTextAlignment="Center" />
                     </VerticalStackLayout>
                 </CollectionView.EmptyView>
                 <CollectionView.ItemTemplate>
-                    <DataTemplate x:DataType="models:ApplicationRecord">
+                    <DataTemplate x:DataType="models:CalendarListItem">
                         <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 10" Padding="12" Margin="0,0,0,8" BackgroundColor="White">
                             <VerticalStackLayout Spacing="4">
-                                <Label Text="{Binding FollowUpDisplay}" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource Accent}" />
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label Grid.Column="0" Text="{Binding WhenDisplay}" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource Accent}" />
+                                    <Label Grid.Column="1" Text="{Binding Kind}" FontSize="11" TextColor="{StaticResource MutedInk}" />
+                                </Grid>
                                 <Label Text="{Binding Title}" FontSize="15" FontAttributes="Bold" TextColor="{StaticResource Ink}" LineBreakMode="TailTruncation" />
-                                <Label Text="{Binding Company}" FontSize="13" TextColor="{StaticResource MutedInk}" />
-                                <Label Text="{Binding Status, StringFormat='Stage: {0}'}" FontSize="12" TextColor="{StaticResource MutedInk}" />
-                                <Label Text="{Binding Notes}" FontSize="12" TextColor="{StaticResource Ink}" LineBreakMode="TailTruncation" MaxLines="2" />
+                                <Label Text="{Binding Subtitle}" FontSize="13" TextColor="{StaticResource MutedInk}" LineBreakMode="TailTruncation" />
+                                <Label Text="{Binding Detail}" FontSize="12" TextColor="{StaticResource Ink}" LineBreakMode="TailTruncation" MaxLines="2" />
                             </VerticalStackLayout>
                         </Border>
                     </DataTemplate>

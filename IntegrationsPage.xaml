@@ -34,10 +34,16 @@
                 <VerticalStackLayout Spacing="8">
                     <Grid ColumnDefinitions="*,Auto">
                         <Label Text="Google Calendar" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
-                        <Label Grid.Column="1" Text="Not configured" FontSize="12" TextColor="{StaticResource MutedInk}" VerticalOptions="Center" />
+                        <Label x:Name="GoogleStateLabel" Grid.Column="1" Text="Not connected" FontSize="12" TextColor="{StaticResource MutedInk}" VerticalOptions="Center" />
                     </Grid>
-                    <Label Text="Calendar integration is still a placeholder. JobFlow will not ask for your Google password or create/change events without explicit confirmation." FontSize="12" TextColor="{StaticResource MutedInk}" />
+                    <Label Text="Read-only access to your primary Google Calendar. JobFlow never asks for your Google password and will not create or change events." FontSize="12" TextColor="{StaticResource MutedInk}" />
+                    <Entry x:Name="GoogleClientIdEntry" Placeholder="OAuth client ID (from Google Cloud)" TextColor="{StaticResource Ink}" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button x:Name="ConnectGoogleButton" Text="Connect Google" Clicked="OnConnectGoogleClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
+                        <Button x:Name="DisconnectGoogleButton" Grid.Column="1" Text="Disconnect" Clicked="OnDisconnectGoogleClicked" IsVisible="False" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="10" />
+                    </Grid>
                     <Button Text="Open Calendar tab" Clicked="OnOpenCalendarClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
+                    <Label x:Name="GoogleDetailsLabel" Text="Not connected." FontSize="12" TextColor="{StaticResource MutedInk}" />
                 </VerticalStackLayout>
             </Border>
             <Label Text="No GitHub account or repository connection is used by JobFlow." FontSize="12" TextColor="{StaticResource MutedInk}" />

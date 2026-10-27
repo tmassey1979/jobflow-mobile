@@ -1,38 +1,23 @@
 namespace JobFlow.Mobile.Services;
 
 /// <summary>
-/// Placeholder for Google Calendar read-only integration.
-/// Real OAuth + event listing will be added once an Android OAuth client ID
-/// with calendar.readonly scope is configured (see docs/INTEGRATIONS-SETUP.md).
-/// This service never writes calendar events and never submits applications.
+/// Legacy placeholder retained for compatibility. Use <see cref="GoogleCalendarService"/> for OAuth and events.
 /// </summary>
+[Obsolete("Use GoogleCalendarService for read-only Google Calendar access.")]
 public sealed class CalendarService
 {
-    public bool IsConfigured => false;
+    private readonly GoogleCalendarService _google = new();
+
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(GoogleCalendarService.DefaultClientId)
+        || _google.GetClientIdAsync().GetAwaiter().GetResult() is { Length: > 0 };
 
     public string SetupMessage =>
-        "Google Calendar is not configured yet. " +
-        "Add an Android OAuth client (calendar.readonly) and wire the client ID, " +
-        "then reconnect from the Integrations tab. Until then, interview dates " +
-        "can still be stored as local follow-ups on tracked applications.";
+        "Connect Google Calendar from the Integrations tab (read-only). " +
+        "Configure an OAuth client ID as described in docs/INTEGRATIONS-SETUP.md.";
 
-    public Task<IReadOnlyList<CalendarEventSummary>> GetUpcomingEventsAsync(
+    public Task<IReadOnlyList<GoogleCalendarService.CalendarEventSummary>> GetUpcomingEventsAsync(
         DateTimeOffset from,
         DateTimeOffset to,
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        // Intentionally empty until OAuth is configured.
-        return Task.FromResult<IReadOnlyList<CalendarEventSummary>>(Array.Empty<CalendarEventSummary>());
-    }
-
-    public sealed class CalendarEventSummary
-    {
-        public string Id { get; init; } = "";
-        public string Title { get; init; } = "";
-        public DateTimeOffset Start { get; init; }
-        public DateTimeOffset? End { get; init; }
-        public string? Location { get; init; }
-        public bool IsAllDay { get; init; }
-    }
+        CancellationToken cancellationToken = default) =>
+        _google.GetUpcomingEventsAsync(from, to, cancellationToken);
 }

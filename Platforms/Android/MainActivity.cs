@@ -1,4 +1,5 @@
 using Android.App;
+using Android.Content;
 using Android.Content.PM;
 using Android.OS;
 
@@ -14,6 +15,10 @@ namespace JobFlow.Mobile;
         | ConfigChanges.ScreenLayout
         | ConfigChanges.SmallestScreenSize
         | ConfigChanges.Density)]
+[IntentFilter(
+    new[] { Intent.ActionView },
+    Categories = new[] { Intent.CategoryDefault, Intent.CategoryBrowsable },
+    DataScheme = "com.tmassey1979.jobflowmobile")]
 public class MainActivity : MauiAppCompatActivity
 {
     protected override void OnCreate(Bundle? savedInstanceState)

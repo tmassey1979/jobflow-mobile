@@ -5,12 +5,19 @@ namespace JobFlow.Mobile;
 public partial class IntegrationsPage : ContentPage
 {
     private readonly SupabaseDataService _supabaseService = new();
+    private readonly GoogleCalendarService _googleCalendar = new();
 
     public IntegrationsPage()
     {
         InitializeComponent();
         _ = _supabaseService.ClearLegacyGitHubCredentialsAsync();
-        _ = RefreshSupabaseStateAsync();
+        _ = InitializeAsync();
+    }
+
+    private async Task InitializeAsync()
+    {
+        await RefreshSupabaseStateAsync();
+        await RefreshGoogleStateAsync();
     }
 
     private async Task RefreshSupabaseStateAsync()
@@ -36,6 +43,41 @@ public partial class IntegrationsPage : ContentPage
         {
             SupabaseStateLabel.Text = "Check connection";
             SupabaseDetailsLabel.Text = SafeMessage(ex);
+        }
+    }
+
+    private async Task RefreshGoogleStateAsync()
+    {
+        try
+        {
+            var clientId = await _googleCalendar.GetClientIdAsync();
+            if (!string.IsNullOrWhiteSpace(clientId) && string.IsNullOrWhiteSpace(GoogleClientIdEntry.Text))
+                GoogleClientIdEntry.Text = clientId;
+
+            if (await _googleCalendar.IsConnectedAsync())
+            {
+                var email = await _googleCalendar.GetAccountEmailAsync();
+                GoogleStateLabel.Text = "Connected";
+                GoogleDetailsLabel.Text = string.IsNullOrWhiteSpace(email)
+                    ? "Read-only calendar access is active. Open the Calendar tab to see events."
+                    : $"Connected as {email}. Read-only · primary calendar.";
+                DisconnectGoogleButton.IsVisible = true;
+                ConnectGoogleButton.Text = "Reconnect";
+            }
+            else
+            {
+                GoogleStateLabel.Text = _googleCalendar.IsClientIdConfigured(clientId) ? "Not connected" : "Needs client ID";
+                GoogleDetailsLabel.Text = _googleCalendar.IsClientIdConfigured(clientId)
+                    ? "Tap Connect Google, approve calendar.readonly in the browser, then open the Calendar tab."
+                    : "Paste your Google OAuth client ID below (see docs/INTEGRATIONS-SETUP.md), then Connect.";
+                DisconnectGoogleButton.IsVisible = false;
+                ConnectGoogleButton.Text = "Connect Google";
+            }
+        }
+        catch (Exception ex)
+        {
+            GoogleStateLabel.Text = "Error";
+            GoogleDetailsLabel.Text = SafeMessage(ex);
         }
     }
 
@@ -85,6 +127,50 @@ public partial class IntegrationsPage : ContentPage
         await _supabaseService.SignOutAsync();
         SupabasePasswordEntry.Text = "";
         await RefreshSupabaseStateAsync();
+    }
+
+    private async void OnConnectGoogleClicked(object sender, EventArgs e)
+    {
+        ConnectGoogleButton.IsEnabled = false;
+        try
+        {
+            var typed = GoogleClientIdEntry.Text?.Trim();
+            if (!string.IsNullOrWhiteSpace(typed))
+                await _googleCalendar.SetClientIdOverrideAsync(typed);
+
+            GoogleStateLabel.Text = "Connecting…";
+            GoogleDetailsLabel.Text = "Opening Google sign-in in the browser…";
+            await _googleCalendar.ConnectAsync();
+            await RefreshGoogleStateAsync();
+            await DisplayAlertAsync(
+                "Google Calendar connected",
+                "Read-only access granted. Open the Calendar tab to see upcoming events. JobFlow will not create or change events.",
+                "OK");
+        }
+        catch (Exception ex)
+        {
+            var message = SafeMessage(ex);
+            GoogleStateLabel.Text = "Not connected";
+            GoogleDetailsLabel.Text = message;
+            await DisplayAlertAsync("Couldn't connect Google Calendar", message, "OK");
+        }
+        finally
+        {
+            ConnectGoogleButton.IsEnabled = true;
+        }
+    }
+
+    private async void OnDisconnectGoogleClicked(object sender, EventArgs e)
+    {
+        var confirm = await DisplayAlertAsync(
+            "Disconnect Google Calendar?",
+            "Removes the Google session from this device. Local follow-ups are unchanged.",
+            "Disconnect",
+            "Cancel");
+        if (!confirm) return;
+
+        await _googleCalendar.DisconnectAsync();
+        await RefreshGoogleStateAsync();
     }
 
     private async void OnOpenCalendarClicked(object sender, EventArgs e)
