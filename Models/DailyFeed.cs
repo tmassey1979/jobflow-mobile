@@ -110,6 +110,39 @@ public sealed class JobFeedItem
     [JsonPropertyName("application_tracking_path")]
     public string? ApplicationTrackingPath { get; set; }
 
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    [JsonPropertyName("company_summary")]
+    public string? CompanySummary { get; set; }
+
+    [JsonPropertyName("fit_rationale")]
+    public string? FitRationale { get; set; }
+
+    [JsonPropertyName("employment_type")]
+    public string? EmploymentType { get; set; }
+
+    [JsonPropertyName("requisition_id")]
+    public string? RequisitionId { get; set; }
+
+    [JsonPropertyName("posting_status")]
+    public string? PostingStatus { get; set; }
+
+    [JsonPropertyName("compensation_published_text")]
+    public string? CompensationPublishedText { get; set; }
+
+    [JsonPropertyName("relevant_qualifications")]
+    public List<string> RelevantQualifications { get; set; } = [];
+
+    [JsonPropertyName("eligibility_notes")]
+    public List<string> EligibilityNotes { get; set; } = [];
+
+    [JsonPropertyName("application_instructions")]
+    public string? ApplicationInstructions { get; set; }
+
+    [JsonPropertyName("source_urls")]
+    public List<string> SourceUrls { get; set; } = [];
+
     public string SalaryLabel
     {
         get
