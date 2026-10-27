@@ -6,7 +6,7 @@ namespace JobFlow.Mobile.Services;
 
 /// <summary>
 /// Offline-first cache for the last successfully validated job feed.
-/// The database stores feed data only, never GitHub credentials.
+/// The database stores job-feed data only, never account credentials.
 /// </summary>
 public sealed class FeedCacheService
 {
@@ -52,7 +52,7 @@ public sealed class FeedCacheService
     }
 
     /// <summary>
-    /// Removes the cached feed envelope only. Does not remove application tracker records or the GitHub session.
+    /// Removes the cached feed envelope only. Does not remove application tracker records or the cloud account session.
     /// </summary>
     public async Task ClearCachedFeedAsync(CancellationToken cancellationToken = default)
     {
