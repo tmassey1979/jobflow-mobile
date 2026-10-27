@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:JobFlow.Mobile.Models"
+             x:Class="JobFlow.Mobile.EmployersPage"
+             Title="Employers"
+             BackgroundColor="{StaticResource PageBackground}">
+    <Grid RowDefinitions="Auto,*" Padding="12" RowSpacing="10">
+        <VerticalStackLayout Spacing="4">
+            <Label Text="Employers" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+            <Label Text="Keep company notes and decide which employers JobFlow should skip in future discovery runs." FontSize="12" TextColor="{StaticResource MutedInk}" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Label x:Name="StatusLabel" VerticalOptions="Center" FontSize="12" TextColor="{StaticResource MutedInk}" />
+                <Button Grid.Column="1" Text="Refresh" Clicked="OnRefreshClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="8" Padding="12,8" />
+            </Grid>
+        </VerticalStackLayout>
+        <RefreshView Grid.Row="1" IsRefreshing="{Binding IsRefreshing, Mode=TwoWay}" Command="{Binding RefreshCommand}">
+            <CollectionView x:Name="EmployersCollection" SelectionMode="None">
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout Padding="20" Spacing="8" HorizontalOptions="Center" VerticalOptions="Center">
+                        <Label Text="No employers yet" FontSize="16" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                        <Label Text="Sync jobs on the Jobs tab. Employers will be added automatically as postings are imported." FontSize="13" TextColor="{StaticResource MutedInk}" HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:EmployerRecord">
+                        <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 12" Padding="12" Margin="0,0,0,8" BackgroundColor="White">
+                            <VerticalStackLayout Spacing="7">
+                                <Label Text="{Binding Name}" FontSize="16" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                                <Label Text="{Binding Summary}" FontSize="12" TextColor="{StaticResource MutedInk}" LineBreakMode="WordWrap" />
+                                <Label Text="{Binding DecisionLabel}" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource Accent}" />
+                                <Label Text="{Binding BlockReason}" FontSize="12" TextColor="{StaticResource MutedInk}" LineBreakMode="WordWrap" />
+                                <Label Text="{Binding Notes}" FontSize="12" TextColor="{StaticResource Ink}" LineBreakMode="WordWrap" />
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                    <Button Grid.Column="0" Text="{Binding BlockActionLabel}" Clicked="OnBlockActionClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" FontSize="12" />
+                                    <Button Grid.Column="1" Text="Edit notes" Clicked="OnEditNotesClicked" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="8" FontSize="12" />
+                                </Grid>
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </RefreshView>
+    </Grid>
+</ContentPage>
