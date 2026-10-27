@@ -7,11 +7,9 @@ public partial class SettingsPage : ContentPage
 {
     private readonly ApplicationTrackerService _tracker = new();
     private readonly FeedCacheService _cache = new();
+    private readonly SupabaseDataService _supabase = new();
 
-    public SettingsPage()
-    {
-        InitializeComponent();
-    }
+    public SettingsPage() => InitializeComponent();
 
     protected override void OnAppearing()
     {
@@ -23,50 +21,25 @@ public partial class SettingsPage : ContentPage
     {
         try
         {
-            var token = await GitHubAccountStore.GetAccessTokenAsync();
-            var (owner, repo) = await GitHubAccountStore.GetSelectedRepositoryAsync();
-            GitHubStatusLabel.Text = string.IsNullOrWhiteSpace(token)
-                ? "Not signed in. Use Integrations to connect GitHub and choose a data repository."
-                : $"Signed in · data repo {owner}/{repo}";
-
+            var email = await _supabase.GetEmailAsync();
+            CloudStatusLabel.Text = await _supabase.IsSignedInAsync()
+                ? $"Signed in · {email}"
+                : "Not signed in. Connect on the Integrations tab.";
             var records = await _tracker.GetAllAsync();
             var feed = await _cache.LoadLatestAsync();
             LocalDataLabel.Text = feed is null
                 ? $"{records.Count} tracked applications · no cached feed"
-                : $"{records.Count} tracked applications · cached feed has {feed.Jobs.Count} jobs ({feed.SourcePath ?? "path unknown"})";
+                : $"{records.Count} tracked applications · cached feed has {feed.Jobs.Count} jobs";
         }
         catch
         {
-            GitHubStatusLabel.Text = "Could not read session or local storage.";
+            CloudStatusLabel.Text = "Cloud account status unavailable.";
             LocalDataLabel.Text = "Local data status unavailable.";
         }
     }
 
-    private async void OnOpenIntegrationsClicked(object sender, EventArgs e)
-    {
+    private async void OnOpenIntegrationsClicked(object sender, EventArgs e) =>
         await Shell.Current.GoToAsync("//integrations");
-    }
-
-    private async void OnSignOutClicked(object sender, EventArgs e)
-    {
-        var confirm = await DisplayAlertAsync(
-            "Sign out of GitHub?",
-            "Removes the GitHub session and selected repository from this device. Tracked applications stay local.",
-            "Sign out",
-            "Cancel");
-        if (!confirm) return;
-
-        try
-        {
-            await GitHubAccountStore.ClearSessionAsync();
-            StatusLabel.Text = "Signed out.";
-            await RefreshAsync();
-        }
-        catch
-        {
-            await DisplayAlertAsync("Couldn't sign out", "Secure Storage could not clear the session.", "OK");
-        }
-    }
 
     private async void OnExportClicked(object sender, EventArgs e)
     {
@@ -75,23 +48,13 @@ public partial class SettingsPage : ContentPage
             var records = await _tracker.GetAllAsync();
             var payload = records.Select(r => new
             {
-                r.JobId,
-                r.Title,
-                r.Company,
-                r.Status,
-                r.Notes,
-                r.ApplicationUrl,
-                follow_up_utc = r.FollowUpAtUtc,
-                r.CreatedAtUtc,
-                r.UpdatedAtUtc
+                r.JobId, r.Title, r.Company, r.Status, r.Notes, r.ApplicationUrl,
+                follow_up_utc = r.FollowUpAtUtc, r.CreatedAtUtc, r.UpdatedAtUtc
             });
             var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
             await Clipboard.Default.SetTextAsync(json);
-            StatusLabel.Text = $"Copied {records.Count} application records to the clipboard (no tokens).";
-            await DisplayAlertAsync(
-                "Export ready",
-                $"{records.Count} application records were copied to the clipboard as JSON. Paste them into a file or note. Tokens are never included.",
-                "OK");
+            StatusLabel.Text = $"Copied {records.Count} application records to the clipboard (no credentials).";
+            await DisplayAlertAsync("Export ready", $"{records.Count} application records were copied as JSON. Credentials are never included.", "OK");
         }
         catch
         {
@@ -101,13 +64,8 @@ public partial class SettingsPage : ContentPage
 
     private async void OnClearCacheClicked(object sender, EventArgs e)
     {
-        var confirm = await DisplayAlertAsync(
-            "Clear cached job feed?",
-            "Removes the offline job list cache only. Tracked applications and GitHub sign-in are kept.",
-            "Clear cache",
-            "Cancel");
+        var confirm = await DisplayAlertAsync("Clear cached job feed?", "Removes the offline job list cache only. Tracked applications and your cloud session stay intact.", "Clear cache", "Cancel");
         if (!confirm) return;
-
         try
         {
             await _cache.ClearCachedFeedAsync();
