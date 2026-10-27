@@ -4,7 +4,7 @@ Private, Android-only JobFlow app built with .NET MAUI and C#.
 
 ## What works today
 
-- **Jobs tab** — load the signed-in user's cloud feed from Supabase, open HTTPS application links, and track jobs locally.
+- **Jobs tab** — load the authenticated shared job-listing feed from Supabase, open HTTPS application links, and track jobs locally.
 - **Applications tab** — search, set stage, notes, and follow-up dates (device-local SQLite only).
 - **Integrations tab** — create/sign in to a Supabase account for cloud feed access.
 - **Offline** — last successful feed is cached locally; app still opens without network.
@@ -49,7 +49,7 @@ If you previously installed an APK signed with the temporary CI debug key, unins
 3. Confirm cloud jobs appear on the Jobs tab once the scheduled feed writer is connected.
 4. Use **Track** on a job card, then open the Applications tab.
 
-The app reads the signed-in user's Supabase feed. The legacy GitHub account integration has been removed. Recruiter outreach, form submission, and cloud application-tracker sync are not implemented yet.
+The app reads shared job-listing metadata from Supabase for authenticated accounts. Tailored resume/cover-letter text is kept out of the shared feed and is not yet synced into the app's private kit records. The legacy GitHub account integration has been removed. Recruiter outreach, form submission, and cloud application-tracker sync are not implemented yet.
 
 ## Graphics
 
