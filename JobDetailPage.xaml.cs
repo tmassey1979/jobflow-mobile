@@ -61,7 +61,20 @@ public partial class JobDetailPage : ContentPage
         try
         {
             var record = await _applicationTracker.TrackAsync(_job);
-            StatusLabel.Text = $"Tracked locally · stage {record.Status}.";
+            var syncMessage = "local only";
+            try
+            {
+                if (await _supabaseService.IsSignedInAsync())
+                {
+                    await _supabaseService.UpsertApplicationTrackingAsync(record);
+                    syncMessage = "cloud synced";
+                }
+            }
+            catch
+            {
+                // The Applications tab retries cloud sync without losing the local record.
+            }
+            StatusLabel.Text = $"Tracked · {syncMessage} · stage {record.Status}.";
             await DisplayAlertAsync("Application tracker", $"Saved locally. Current stage: {record.Status}.", "OK");
         }
         catch
