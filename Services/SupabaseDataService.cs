@@ -21,6 +21,23 @@ public sealed class SupabaseDataService
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(60) };
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
+    public async Task ClearLegacyGitHubCredentialsAsync()
+    {
+        foreach (var key in new[]
+        {
+            "jobflow.github.access.token", "jobflow.github.user.login",
+            "jobflow.github.repo.owner", "jobflow.github.repo.name",
+            "jobflow.github.oauth.client_id", "jobflow.github.readonly.token",
+            "jobflow.github.pending.device_code", "jobflow.github.pending.user_code",
+            "jobflow.github.pending.verification_uri", "jobflow.github.pending.interval",
+            "jobflow.github.pending.expires_at"
+        })
+        {
+            try { SecureStorage.Default.Remove(key); } catch { }
+        }
+        await Task.CompletedTask;
+    }
+
     public async Task<string?> GetEmailAsync() => await SecureStorage.Default.GetAsync(EmailKey);
     public async Task<bool> IsSignedInAsync() => !string.IsNullOrWhiteSpace(await GetValidAccessTokenAsync());
 
