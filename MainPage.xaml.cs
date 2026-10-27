@@ -7,6 +7,7 @@ namespace JobFlow.Mobile;
 public partial class MainPage : ContentPage
 {
     private readonly GitHubDataService _dataService = new();
+    private readonly SupabaseDataService _supabaseService = new();
     private readonly FeedCacheService _cacheService = new();
     private readonly OfflineJobStore _offlineJobStore = new();
     private readonly ApplicationTrackerService _applicationTracker = new();
@@ -47,15 +48,21 @@ public partial class MainPage : ContentPage
     {
         try
         {
+            if (await _supabaseService.IsSignedInAsync())
+            {
+                ConnectionSummaryLabel.Text = $"Connected · Supabase cloud feed";
+                return;
+            }
+
             var token = await GitHubAccountStore.GetAccessTokenAsync();
             var (owner, repo) = await GitHubAccountStore.GetSelectedRepositoryAsync();
             ConnectionSummaryLabel.Text = string.IsNullOrWhiteSpace(token)
-                ? "Sign in on Integrations, then choose your data repository."
-                : $"Signed in · {owner}/{repo}";
+                ? "Connect Supabase or sign in on Integrations to load jobs."
+                : $"Legacy feed · {owner}/{repo}";
         }
         catch
         {
-            ConnectionSummaryLabel.Text = "Sign in on Integrations.";
+            ConnectionSummaryLabel.Text = "Connect Supabase or sign in on Integrations.";
         }
     }
 
@@ -129,27 +136,49 @@ public partial class MainPage : ContentPage
     {
         if (IsRefreshing && fromPull) return;
 
-        var token = await GitHubAccountStore.GetAccessTokenAsync();
-        if (string.IsNullOrWhiteSpace(token))
+        bool useSupabase;
+        string? token;
+        try
+        {
+            useSupabase = await _supabaseService.IsSignedInAsync();
+            token = await GitHubAccountStore.GetAccessTokenAsync();
+        }
+        catch
+        {
+            useSupabase = false;
+            token = null;
+        }
+
+        if (!useSupabase && string.IsNullOrWhiteSpace(token))
         {
             IsRefreshing = false;
             await DisplayAlertAsync(
                 "Sign in required",
-                "Open the Integrations tab, sign in with GitHub, and choose your data repository.",
+                "Open Integrations and connect your Supabase account. GitHub remains available as the legacy feed source.",
                 "OK");
             return;
         }
 
         IsRefreshing = true;
         LoadButton.IsEnabled = false;
-        StatusLabel.Text = "Importing every daily feed from GitHub…";
+        StatusLabel.Text = useSupabase ? "Loading cloud jobs from Supabase…" : "Importing every daily feed from GitHub…";
 
         try
         {
-            var (owner, repo) = await GitHubAccountStore.GetSelectedRepositoryAsync();
-            var progress = new Progress<string>(msg => MainThread.BeginInvokeOnMainThread(() => StatusLabel.Text = msg));
-
-            var feed = await _dataService.LoadAllFeedsAsync(token, owner, repo, progress);
+            DailyFeed feed;
+            string source;
+            if (useSupabase)
+            {
+                feed = await _supabaseService.LoadAllJobsAsync();
+                source = "Supabase";
+            }
+            else
+            {
+                var (owner, repo) = await GitHubAccountStore.GetSelectedRepositoryAsync();
+                var progress = new Progress<string>(msg => MainThread.BeginInvokeOnMainThread(() => StatusLabel.Text = msg));
+                feed = await _dataService.LoadAllFeedsAsync(token!, owner, repo, progress);
+                source = $"{owner}/{repo}";
+            }
 
             try
             {
@@ -157,20 +186,24 @@ public partial class MainPage : ContentPage
             }
             catch
             {
-                // Still show the jobs even if cache write fails.
+                // Still show jobs even if the local cache write fails.
             }
 
             await LoadTrackedIdsAsync();
             ApplyJobs(feed.Jobs);
-            FeedDateLabel.Text = $"Imported {feed.Jobs.Count} unique jobs · {feed.SourcePath}";
-            StatusLabel.Text = $"{feed.Jobs.Count} unique jobs from {owner}/{repo}. Pull down anytime to refresh all feeds.";
+            FeedDateLabel.Text = $"Imported {feed.Jobs.Count} unique jobs · {source}";
+            StatusLabel.Text = useSupabase
+                ? $"{feed.Jobs.Count} cloud jobs loaded. The last successful feed remains available offline."
+                : $"{feed.Jobs.Count} unique jobs from {source}. Pull down anytime to refresh all feeds.";
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             await LoadFromOfflineStoreAsync();
             await DisplayAlertAsync(
                 "JobFlow couldn't refresh",
-                "GitHub access or the feeds could not be verified. Previously imported jobs remain available offline. Check sign-in, repository choice, network, and that daily/YYYY-MM-DD.json files exist.",
+                string.IsNullOrWhiteSpace(ex.Message)
+                    ? "The cloud feed could not be verified. Previously imported jobs remain available offline."
+                    : $"{ex.Message}\n\nPreviously imported jobs remain available offline.",
                 "OK");
         }
         finally
