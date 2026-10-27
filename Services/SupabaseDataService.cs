@@ -14,7 +14,7 @@ namespace JobFlow.Mobile.Services;
 public sealed class SupabaseDataService
 {
     public const string ProjectUrl = "https://cwrijlxpkrwtpyhvncmx.supabase.co";
-    public const string PublishableKey = "sb_publishable_fQ_4AGE0qQXblVZdJzwicQ_Y7B-_TYQ";
+    public const string PublishableKey = "sb_publishable_P3KM4EKozcHn2YQUSYQQGw_cP8g-a32";
     private const string AccessTokenKey = "jobflow.supabase.access_token";
     private const string RefreshTokenKey = "jobflow.supabase.refresh_token";
     private const string EmailKey = "jobflow.supabase.email";
