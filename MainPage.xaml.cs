@@ -225,6 +225,15 @@ public partial class MainPage : ContentPage
         try
         {
             var record = await _applicationTracker.TrackAsync(item.Job);
+            try
+            {
+                if (await _supabaseService.IsSignedInAsync())
+                    await _supabaseService.UpsertApplicationTrackingAsync(record);
+            }
+            catch
+            {
+                // Keep local tracking available; the Applications tab retries cloud sync.
+            }
             _trackedJobIds.Add(record.JobId);
             ApplyFilter(SearchEntry.Text);
             await DisplayAlertAsync(
