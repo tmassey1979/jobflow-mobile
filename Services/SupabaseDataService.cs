@@ -119,8 +119,10 @@ public sealed class SupabaseDataService
         var row = doc.RootElement.EnumerateArray().FirstOrDefault();
         if (row.ValueKind != JsonValueKind.Object) return null;
         var column = kind switch { "resume" => "resume_md", "cover" => "cover_letter_md", _ => "metadata" };
-        if (!row.TryGetProperty(column, out var value) || value.ValueKind != JsonValueKind.String) return null;
-        return value.GetString();
+        if (!row.TryGetProperty(column, out var value)) return null;
+        if (value.ValueKind == JsonValueKind.String) return value.GetString();
+        if (kind == "metadata" && value.ValueKind == JsonValueKind.Object) return value.GetRawText();
+        return null;
     }
 
     private async Task<string?> GetValidAccessTokenAsync()
