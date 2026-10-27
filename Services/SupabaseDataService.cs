@@ -121,33 +121,36 @@ public sealed class SupabaseDataService
         };
     }
 
-    public async Task UpsertApplicationTrackingAsync(ApplicationRecord record, CancellationToken cancellationToken = default)
+    public Task UpsertApplicationTrackingAsync(ApplicationRecord record, CancellationToken cancellationToken = default) =>
+        UpsertApplicationTrackingBatchAsync(new[] { record }, cancellationToken);
+
+    public async Task UpsertApplicationTrackingBatchAsync(IReadOnlyCollection<ApplicationRecord> records, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(record);
+        if (records.Count == 0) return;
         var token = await GetValidAccessTokenAsync();
         if (string.IsNullOrWhiteSpace(token))
             throw new InvalidOperationException("Sign in to JobFlow Cloud before syncing application tracking.");
 
-        var status = record.Status switch
-        {
-            ApplicationStages.Interested => "discovered",
-            ApplicationStages.Preparing => "reviewed",
-            ApplicationStages.ReadyToApply => "ready_for_approval",
-            ApplicationStages.Applied => "applied",
-            ApplicationStages.Interviewing => "interview",
-            ApplicationStages.Offer => "interview",
-            ApplicationStages.Rejected => "rejected",
-            _ => "discovered"
-        };
-        var payload = new
+        var payload = records.Select(record => new
         {
             stable_job_id = record.JobId,
-            status,
+            status = record.Status switch
+            {
+                ApplicationStages.Interested => "discovered",
+                ApplicationStages.Preparing => "reviewed",
+                ApplicationStages.ReadyToApply => "ready_for_approval",
+                ApplicationStages.Applied => "applied",
+                ApplicationStages.Interviewing => "interview",
+                ApplicationStages.Offer => "interview",
+                ApplicationStages.Rejected => "rejected",
+                _ => "discovered"
+            },
             approval_required = true,
             notes = record.Notes,
             follow_up_date = record.FollowUpAtUtc?.ToUniversalTime().ToString("yyyy-MM-dd"),
             updated_at = record.UpdatedAtUtc.ToUniversalTime().ToString("O")
-        };
+        }).ToArray();
+
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
             $"{ProjectUrl}/rest/v1/application_tracking?on_conflict=user_id%2Cstable_job_id");
