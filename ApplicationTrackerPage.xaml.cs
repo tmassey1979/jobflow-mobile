@@ -7,6 +7,7 @@ namespace JobFlow.Mobile;
 public partial class ApplicationTrackerPage : ContentPage
 {
     private readonly ApplicationTrackerService _tracker = new();
+    private readonly SupabaseDataService _supabase = new();
     private IReadOnlyList<ApplicationRecord> _allRecords = Array.Empty<ApplicationRecord>();
     private FollowUpFilter _followUpFilter = FollowUpFilter.All;
     private string? _stageFilter;
@@ -27,11 +28,36 @@ public partial class ApplicationTrackerPage : ContentPage
         try
         {
             _allRecords = await _tracker.GetAllAsync();
+            await SyncTrackingAsync(_allRecords);
             ApplySearch(SearchEntry.Text);
         }
         catch
         {
             await DisplayAlertAsync("Tracker unavailable", "JobFlow could not read the local application tracker.", "OK");
+        }
+    }
+
+    private async Task SyncTrackingAsync(IReadOnlyList<ApplicationRecord> records)
+    {
+        try
+        {
+            if (!await _supabase.IsSignedInAsync())
+            {
+                CloudSyncLabel.Text = "Cloud tracking sync: sign in to JobFlow Cloud; local tracking still works.";
+                return;
+            }
+
+            await _supabase.UpsertApplicationTrackingBatchAsync(records);
+            CloudSyncLabel.Text = records.Count == 0
+                ? "Cloud tracking sync: connected; no records to sync."
+                : $"Cloud tracking sync: {records.Count} record(s) synced.";
+        }
+        catch (Exception ex)
+        {
+            var message = ex.Message?.Trim() ?? "Sync failed";
+            CloudSyncLabel.Text = $"Cloud tracking sync: {message}";
+            if (CloudSyncLabel.Text.Length > 180)
+                CloudSyncLabel.Text = CloudSyncLabel.Text[..177] + "…";
         }
     }
 
