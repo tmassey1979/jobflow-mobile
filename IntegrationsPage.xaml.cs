@@ -9,6 +9,7 @@ public partial class IntegrationsPage : ContentPage
     public IntegrationsPage()
     {
         InitializeComponent();
+        _ = _supabaseService.ClearLegacyGitHubCredentialsAsync();
         _ = RefreshSupabaseStateAsync();
     }
 
