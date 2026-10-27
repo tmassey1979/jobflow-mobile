@@ -29,7 +29,41 @@
 
             <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="14" BackgroundColor="White">
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="Source paths (from feed)" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                    <Label Text="Job description" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                    <Label x:Name="DescriptionLabel" FontSize="13" TextColor="{StaticResource Ink}" LineBreakMode="WordWrap" />
+                    <Label x:Name="PostingStatusLabel" FontSize="12" TextColor="{StaticResource MutedInk}" LineBreakMode="WordWrap" />
+                    <Label x:Name="RequisitionLabel" FontSize="12" TextColor="{StaticResource MutedInk}" LineBreakMode="WordWrap" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="14" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="About the employer" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                    <Label x:Name="CompanySummaryLabel" FontSize="13" TextColor="{StaticResource Ink}" LineBreakMode="WordWrap" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="14" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Why it may fit" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                    <Label x:Name="FitRationaleLabel" FontSize="13" TextColor="{StaticResource Ink}" LineBreakMode="WordWrap" />
+                    <Label Text="Relevant qualifications" FontAttributes="Bold" FontSize="12" TextColor="{StaticResource Ink}" />
+                    <Label x:Name="QualificationsLabel" FontSize="13" TextColor="{StaticResource Ink}" LineBreakMode="WordWrap" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="14" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Eligibility and application" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                    <Label x:Name="EligibilityNotesLabel" FontSize="13" TextColor="{StaticResource Ink}" LineBreakMode="WordWrap" />
+                    <Label x:Name="ApplicationInstructionsLabel" FontSize="13" TextColor="{StaticResource Ink}" LineBreakMode="WordWrap" />
+                    <Label x:Name="SourceUrlsLabel" FontSize="12" TextColor="{StaticResource MutedInk}" LineBreakMode="WordWrap" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="14" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Advanced source metadata" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
                     <Label x:Name="MetadataPathLabel" FontSize="12" TextColor="{StaticResource MutedInk}" LineBreakMode="WordWrap" />
                     <Label x:Name="ResumePathLabel" FontSize="12" TextColor="{StaticResource MutedInk}" LineBreakMode="WordWrap" />
                     <Label x:Name="CoverPathLabel" FontSize="12" TextColor="{StaticResource MutedInk}" LineBreakMode="WordWrap" />
@@ -45,6 +79,7 @@
                 <Button Grid.Column="0" x:Name="ResumeButton" Text="Resume" Clicked="OnResumeClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
                 <Button Grid.Column="1" x:Name="CoverButton" Text="Cover letter" Clicked="OnCoverClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
             </Grid>
+            <Button Text="Manage employer decision" Clicked="OnManageEmployerClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
             <Button x:Name="TrackButton" Text="Track application" Clicked="OnTrackClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
             <Button x:Name="OpenAppButton" Text="Open application link" Clicked="OnOpenApplicationClicked" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="10" />
             <Label x:Name="StatusLabel" FontSize="12" TextColor="{StaticResource MutedInk}" />
