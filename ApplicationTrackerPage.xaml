@@ -10,6 +10,7 @@
             <Label Text="Applications" FontSize="22" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
             <Label x:Name="SummaryLabel" Text="No applications tracked yet." FontSize="12" FontAttributes="Bold" TextColor="{StaticResource Accent}" />
             <Label x:Name="PipelineLabel" FontSize="11" TextColor="{StaticResource MutedInk}" LineBreakMode="TailTruncation" />
+            <Label x:Name="CloudSyncLabel" Text="Cloud tracking sync: not checked" FontSize="10" TextColor="{StaticResource MutedInk}" LineBreakMode="TailTruncation" />
             <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
                 <HorizontalStackLayout Spacing="6">
                     <Button x:Name="FilterAllButton" Text="All" Clicked="OnFilterAllClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="8" Padding="10,6" FontSize="12" />
