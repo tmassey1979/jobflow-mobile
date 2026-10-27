@@ -158,6 +158,10 @@ public partial class MainPage : ContentPage
         }
         catch (Exception ex)
         {
+            var errorDetails = ex.ToString();
+            try { await Clipboard.Default.SetTextAsync(errorDetails); }
+            catch { /* Clipboard failure must not hide the original sync error. */ }
+
             await LoadFromOfflineStoreAsync();
             await DisplayAlertAsync(
                 "JobFlow couldn't refresh",
