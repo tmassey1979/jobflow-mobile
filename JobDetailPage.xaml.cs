@@ -7,6 +7,7 @@ public partial class JobDetailPage : ContentPage
 {
     private readonly JobFeedItem _job;
     private readonly GitHubDataService _dataService = new();
+    private readonly SupabaseDataService _supabaseService = new();
     private readonly ApplicationTrackerService _applicationTracker = new();
 
     public JobDetailPage(JobFeedItem job)
@@ -89,6 +90,38 @@ public partial class JobDetailPage : ContentPage
 
     private async Task OpenDocumentAsync(DocumentKind kind)
     {
+        var documentKind = kind switch
+        {
+            DocumentKind.Resume => "resume",
+            DocumentKind.CoverLetter => "cover",
+            _ => "metadata"
+        };
+
+        try
+        {
+            if (await _supabaseService.IsSignedInAsync())
+            {
+                var cloudContent = await _supabaseService.GetJobDocumentAsync(_job.JobId, documentKind);
+                if (!string.IsNullOrWhiteSpace(cloudContent))
+                {
+                    var cloudTitle = kind switch
+                    {
+                        DocumentKind.Metadata => "Metadata",
+                        DocumentKind.Resume => "Resume",
+                        _ => "Cover letter"
+                    };
+                    StatusLabel.Text = $"Opened {cloudTitle.ToLowerInvariant()} from Supabase.";
+                    await Navigation.PushAsync(new DocumentViewerPage(
+                        cloudTitle, $"{_job.Title} · {_job.Company}", "Supabase cloud record", cloudContent));
+                    return;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusLabel.Text = $"Cloud document unavailable: {ex.Message}";
+        }
+
         var token = await GitHubAccountStore.GetAccessTokenAsync();
         if (string.IsNullOrWhiteSpace(token))
         {
