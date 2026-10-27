@@ -228,7 +228,7 @@ public partial class MainPage : ContentPage
             try
             {
                 if (await _supabaseService.IsSignedInAsync())
-                    await _supabaseService.UpsertApplicationTrackingAsync(record);
+                    await _supabaseService.UpsertApplicationTrackingBatchAsync(await _applicationTracker.GetAllAsync());
             }
             catch
             {
