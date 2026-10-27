@@ -1,15 +1,11 @@
 namespace JobFlow.Mobile.Services;
 
 /// <summary>
-/// Legacy placeholder retained for compatibility. Use <see cref="GoogleCalendarService"/> for OAuth and events.
+/// Compatibility wrapper. Prefer <see cref="GoogleCalendarService"/>.
 /// </summary>
-[Obsolete("Use GoogleCalendarService for read-only Google Calendar access.")]
 public sealed class CalendarService
 {
     private readonly GoogleCalendarService _google = new();
-
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(GoogleCalendarService.DefaultClientId)
-        || _google.GetClientIdAsync().GetAwaiter().GetResult() is { Length: > 0 };
 
     public string SetupMessage =>
         "Connect Google Calendar from the Integrations tab (read-only). " +

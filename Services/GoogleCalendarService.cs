@@ -3,7 +3,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Web;
 
 namespace JobFlow.Mobile.Services;
 
@@ -23,6 +22,7 @@ public sealed class GoogleCalendarService
 
     public const string RedirectUri = "com.tmassey1979.jobflowmobile:/oauth2redirect";
     public const string CalendarReadonlyScope = "https://www.googleapis.com/auth/calendar.readonly";
+    private const string OpenIdEmailScope = "openid email";
 
     private const string AccessTokenKey = "jobflow.google.access_token";
     private const string RefreshTokenKey = "jobflow.google.refresh_token";
@@ -79,12 +79,13 @@ public sealed class GoogleCalendarService
         var state = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16))
             .TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
+        var scope = CalendarReadonlyScope + " " + OpenIdEmailScope;
         var authUrl =
             "https://accounts.google.com/o/oauth2/v2/auth" +
             "?client_id=" + Uri.EscapeDataString(clientId!) +
             "&redirect_uri=" + Uri.EscapeDataString(RedirectUri) +
             "&response_type=code" +
-            "&scope=" + Uri.EscapeDataString(CalendarReadonlyScope) +
+            "&scope=" + Uri.EscapeDataString(scope) +
             "&code_challenge=" + Uri.EscapeDataString(challenge) +
             "&code_challenge_method=S256" +
             "&access_type=offline" +
