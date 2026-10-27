@@ -49,7 +49,7 @@ If you previously installed an APK signed with the temporary CI debug key, unins
 3. Confirm cloud jobs appear on the Jobs tab once the scheduled feed writer is connected.
 4. Use **Track** on a job card, then open the Applications tab.
 
-The app reads shared job-listing metadata from Supabase for authenticated accounts. Tailored resume/cover-letter text is kept out of the shared feed and is not yet synced into the app's private kit records. The legacy GitHub account integration has been removed. Recruiter outreach, form submission, and cloud application-tracker sync are not implemented yet.
+The app reads shared job-listing metadata from Supabase for authenticated accounts. Tailored resume/cover-letter text is kept out of the shared feed and is not yet synced into the app's private kit records. The legacy GitHub account integration has been removed. Recruiter outreach and form submission are not implemented. Application-tracker changes sync to the signed-in user's private Supabase records when cloud access is available; the app keeps the local SQLite copy for offline use.
 
 ## Graphics
 
