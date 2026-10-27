@@ -87,7 +87,7 @@ public sealed class SupabaseDataService
     public async Task<DailyFeed> LoadAllJobsAsync(CancellationToken cancellationToken = default)
     {
         var token = await GetValidAccessTokenAsync() ?? throw new InvalidOperationException("Sign in with Supabase on the Integrations tab first.");
-        var url = $"{ProjectUrl}/rest/v1/job_records?select=stable_job_id,metadata,cover_letter_md,resume_md,discovered_at,verified_at&order=verified_at.desc.nullslast";
+        var url = $"{ProjectUrl}/rest/v1/shared_job_records?select=stable_job_id,metadata,discovered_at,verified_at,feed_date&order=verified_at.desc.nullslast";
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         AddHeaders(request, token);
         using var response = await Http.SendAsync(request, cancellationToken);
@@ -126,7 +126,10 @@ public sealed class SupabaseDataService
         var token = await GetValidAccessTokenAsync();
         if (string.IsNullOrWhiteSpace(token)) return null;
         var escapedId = Uri.EscapeDataString(jobId);
-        var url = $"{ProjectUrl}/rest/v1/job_records?select=metadata,cover_letter_md,resume_md&stable_job_id=eq.{escapedId}&limit=1";
+        var isMetadata = kind == "metadata";
+        var table = isMetadata ? "shared_job_records" : "job_records";
+        var select = isMetadata ? "metadata" : "cover_letter_md,resume_md";
+        var url = $"{ProjectUrl}/rest/v1/{table}?select={select}&stable_job_id=eq.{escapedId}&limit=1";
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         AddHeaders(request, token);
         using var response = await Http.SendAsync(request, cancellationToken);
@@ -135,11 +138,15 @@ public sealed class SupabaseDataService
         using var doc = JsonDocument.Parse(body);
         var row = doc.RootElement.EnumerateArray().FirstOrDefault();
         if (row.ValueKind != JsonValueKind.Object) return null;
-        var column = kind switch { "resume" => "resume_md", "cover" => "cover_letter_md", _ => "metadata" };
-        if (!row.TryGetProperty(column, out var value)) return null;
-        if (value.ValueKind == JsonValueKind.String) return value.GetString();
-        if (kind == "metadata" && value.ValueKind == JsonValueKind.Object) return value.GetRawText();
-        return null;
+        if (isMetadata)
+        {
+            if (!row.TryGetProperty("metadata", out var metadata)) return null;
+            return metadata.ValueKind == JsonValueKind.String ? metadata.GetString()
+                : metadata.ValueKind == JsonValueKind.Object ? metadata.GetRawText() : null;
+        }
+        var column = kind == "resume" ? "resume_md" : "cover_letter_md";
+        if (!row.TryGetProperty(column, out var value) || value.ValueKind != JsonValueKind.String) return null;
+        return value.GetString();
     }
 
     private async Task<string?> GetValidAccessTokenAsync()
