@@ -121,6 +121,45 @@ public sealed class SupabaseDataService
         };
     }
 
+    public async Task UpsertApplicationTrackingAsync(ApplicationRecord record, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+        var token = await GetValidAccessTokenAsync();
+        if (string.IsNullOrWhiteSpace(token))
+            throw new InvalidOperationException("Sign in to JobFlow Cloud before syncing application tracking.");
+
+        var status = record.Status switch
+        {
+            ApplicationStages.Interested => "discovered",
+            ApplicationStages.Preparing => "reviewed",
+            ApplicationStages.ReadyToApply => "ready_for_approval",
+            ApplicationStages.Applied => "applied",
+            ApplicationStages.Interviewing => "interview",
+            ApplicationStages.Offer => "interview",
+            ApplicationStages.Rejected => "rejected",
+            _ => "discovered"
+        };
+        var payload = new
+        {
+            stable_job_id = record.JobId,
+            status,
+            approval_required = true,
+            notes = record.Notes,
+            follow_up_date = record.FollowUpAtUtc?.ToUniversalTime().ToString("yyyy-MM-dd"),
+            updated_at = record.UpdatedAtUtc.ToUniversalTime().ToString("O")
+        };
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"{ProjectUrl}/rest/v1/application_tracking?on_conflict=user_id%2Cstable_job_id");
+        AddHeaders(request, token);
+        request.Headers.TryAddWithoutValidation("Prefer", "resolution=merge-duplicates,return=minimal");
+        request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        using var response = await Http.SendAsync(request, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            throw ApiError(body, "Couldn't sync application tracking to JobFlow Cloud.");
+    }
+
     public async Task<string?> GetJobDocumentAsync(string jobId, string kind, CancellationToken cancellationToken = default)
     {
         var token = await GetValidAccessTokenAsync();
