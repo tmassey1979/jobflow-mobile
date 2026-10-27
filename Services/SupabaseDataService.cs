@@ -181,8 +181,8 @@ public sealed class SupabaseDataService
     {
         request.Headers.Add("apikey", PublishableKey);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        if (!string.IsNullOrWhiteSpace(accessToken)) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-        else request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", PublishableKey);
+        if (!string.IsNullOrWhiteSpace(accessToken))
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
     }
 
     private static async Task SaveSessionAsync(JsonElement root, string email)
