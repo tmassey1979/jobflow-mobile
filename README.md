@@ -4,12 +4,12 @@ Private, Android-only JobFlow app built with .NET MAUI and C#.
 
 ## What works today
 
-- **Jobs tab** — connect with GitHub Device Login, load the latest `daily/YYYY-MM-DD.json` feed from `tmassey1979/Jobflow-data`, open HTTPS application links, and track a job locally.
+- **Jobs tab** — load the signed-in user's cloud feed from Supabase, with GitHub Device Login retained as a legacy feed source; open HTTPS application links and track jobs locally.
 - **Applications tab** — search, set stage, notes, and follow-up dates (device-local SQLite only).
-- **Integrations tab** — sign in through the browser, choose a repository, and disconnect the GitHub session.
+- **Integrations tab** — create/sign in to a Supabase account for cloud feed access, or sign in through GitHub and choose a legacy feed repository.
 - **Offline** — last successful feed is cached locally; app still opens without network.
 
-No applications are submitted and nothing is written back to GitHub.
+No applications are submitted. The Supabase client uses a publishable key plus the user session and relies on row-level security; never add a service-role key to the Android app. The scheduled feed writer must be configured separately before the cloud feed will contain jobs. Application tracking remains device-local in this version.
 
 ## Install the latest release
 
