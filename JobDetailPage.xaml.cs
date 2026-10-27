@@ -33,6 +33,17 @@ public partial class JobDetailPage : ContentPage
             ? "Match score: unknown"
             : $"Match score: {_job.MatchScore}%";
         JobIdLabel.Text = $"Job ID: {DisplayOrUnknown(_job.JobId)}";
+        DescriptionLabel.Text = DisplayOrUnknown(_job.Description);
+        PostingStatusLabel.Text = $"Posting status: {DisplayOrUnknown(_job.PostingStatus)}";
+        RequisitionLabel.Text = $"Requisition: {DisplayOrUnknown(_job.RequisitionId)}";
+        CompanySummaryLabel.Text = DisplayOrUnknown(_job.CompanySummary);
+        FitRationaleLabel.Text = DisplayOrUnknown(_job.FitRationale);
+        QualificationsLabel.Text = FormatList(_job.RelevantQualifications);
+        EligibilityNotesLabel.Text = FormatList(_job.EligibilityNotes);
+        ApplicationInstructionsLabel.Text = $"Application instructions: {DisplayOrUnknown(_job.ApplicationInstructions)}";
+        SourceUrlsLabel.Text = _job.SourceUrls.Count == 0
+            ? "Source URLs: unknown"
+            : $"Source URLs:\\n{string.Join("\\n", _job.SourceUrls)}";
 
         MetadataPathLabel.Text = $"Metadata: {DisplayOrUnknown(_job.MetadataPath)}";
         ResumePathLabel.Text = $"Resume: {DisplayOrUnknown(_job.ResumePath)}";
@@ -45,6 +56,16 @@ public partial class JobDetailPage : ContentPage
 
         OpenAppButton.IsEnabled = IsSafeHttps(_job.ApplicationUrl);
     }
+
+    private async void OnManageEmployerClicked(object sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new EmployersPage());
+    }
+
+    private static string FormatList(IReadOnlyCollection<string>? values) =>
+        values is null || values.Count == 0
+            ? "Not provided in the current feed."
+            : string.Join("\\n", values.Select(value => $"• {value}"));
 
     private async void OnMetadataClicked(object sender, EventArgs e) =>
         await OpenDocumentAsync(DocumentKind.Metadata);
