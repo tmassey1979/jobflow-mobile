@@ -87,6 +87,12 @@ public sealed class SupabaseDataService
     public async Task<DailyFeed> LoadAllJobsAsync(CancellationToken cancellationToken = default)
     {
         var token = await GetValidAccessTokenAsync() ?? throw new InvalidOperationException("Sign in with Supabase on the Integrations tab first.");
+        var employerPreferences = await GetEmployersAsync(cancellationToken);
+        var blockedEmployers = employerPreferences
+            .Where(employer => employer.DoNotPursue)
+            .Select(employer => employer.NormalizedName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         var url = $"{ProjectUrl}/rest/v1/shared_job_records?select=stable_job_id,metadata,discovered_at,verified_at,feed_date&order=verified_at.desc.nullslast";
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         AddHeaders(request, token);
@@ -111,7 +117,14 @@ public sealed class SupabaseDataService
             CopyIfMissing(node, "application_url", "direct_application_url");
             CopyIfMissing(node, "remote_scope", "remote_eligibility");
             CopyIfMissing(node, "match_score", "fit_score");
-            NormalizeStringField(node, "remote_scope");
+            CopyIfMissing(node, "description", "job_description");
+            CopyIfMissing(node, "description", "full_description");
+            CopyIfMissing(node, "description", "job_description_text");
+            CopyNestedIfMissing(node, "salary_min_usd", "compensation", "min_annual");
+            CopyNestedIfMissing(node, "salary_max_usd", "compensation", "max_annual");
+            CopyNestedIfMissing(node, "salary_pay_type", "compensation", "type");
+            CopyNestedIfMissing(node, "compensation_published_text", "compensation", "published_text");
+            NormalizeRemoteEligibility(node);
 
             var job = node.Deserialize<JobFeedItem>(JsonOptions);
             if (job is not null && !string.IsNullOrWhiteSpace(job.JobId)
@@ -121,18 +134,24 @@ public sealed class SupabaseDataService
         var unique = jobs.DistinctBy(job => job.JobId, StringComparer.OrdinalIgnoreCase).ToList();
         if (unique.Count == 0)
             throw new InvalidOperationException("Supabase returned rows, but none matched the app's required job fields (job ID, title, and employer). Check the shared feed metadata mapping.");
+
+        await EnsureEmployersExistAsync(unique, cancellationToken);
+        var visibleJobs = unique
+            .Where(job => !blockedEmployers.Contains(NormalizeEmployerName(job.Company)))
+            .ToList();
+
         return new DailyFeed
         {
             SchemaVersion = 1,
             GeneratedAt = DateTime.UtcNow.ToString("O"),
-            Jobs = unique,
-            SourcePath = $"Supabase · {unique.Count} jobs"
+            Jobs = visibleJobs,
+            SourcePath = $"Supabase · {visibleJobs.Count} jobs"
         };
     }
 
-    private static void NormalizeStringField(JsonObject target, string key)
+    private static void NormalizeRemoteEligibility(JsonObject target)
     {
-        if (!target.TryGetPropertyValue(key, out var value) || value is null)
+        if (!target.TryGetPropertyValue("remote_scope", out var value) || value is null)
             return;
 
         if (value is JsonValue scalar && scalar.TryGetValue<string>(out _))
@@ -140,23 +159,100 @@ public sealed class SupabaseDataService
 
         if (value is JsonObject obj)
         {
-            foreach (var candidate in new[] { "label", "scope", "type", "value", "description", "eligibility" })
+            var parts = new List<string>();
+            foreach (var key in new[] { "type", "eligible_locations", "verification_status", "eligibility", "description" })
             {
-                if (obj.TryGetPropertyValue(candidate, out var candidateValue)
-                    && candidateValue is JsonValue candidateScalar
-                    && candidateScalar.TryGetValue<string>(out var text)
+                if (obj.TryGetPropertyValue(key, out var candidate)
+                    && candidate is JsonValue candidateValue
+                    && candidateValue.TryGetValue<string>(out var text)
                     && !string.IsNullOrWhiteSpace(text))
-                {
-                    target[key] = text;
-                    return;
-                }
+                    parts.Add(text.Trim());
+            }
+            if (parts.Count > 0)
+            {
+                target["remote_scope"] = string.Join(" · ", parts.Distinct(StringComparer.OrdinalIgnoreCase));
+                return;
             }
         }
 
-        // Some feed producers publish remote_scope as a structured object or array.
-        // Keep its content rather than failing the entire feed deserialization.
-        target[key] = value.ToJsonString();
+        target["remote_scope"] = value.ToJsonString();
     }
+
+    private static void CopyNestedIfMissing(JsonObject target, string targetKey, string parentKey, string childKey)
+    {
+        if (target.ContainsKey(targetKey)
+            || !target.TryGetPropertyValue(parentKey, out var parent)
+            || parent is not JsonObject parentObject
+            || !parentObject.TryGetPropertyValue(childKey, out var child)
+            || child is null)
+            return;
+        target[targetKey] = child.DeepClone();
+    }
+
+    public async Task<List<EmployerRecord>> GetEmployersAsync(CancellationToken cancellationToken = default)
+    {
+        var token = await GetValidAccessTokenAsync()
+            ?? throw new InvalidOperationException("Sign in to JobFlow Cloud to load the employer directory.");
+        var url = $"{ProjectUrl}/rest/v1/employers?select=normalized_name,name,website,industry,summary,pursuit_status,do_not_pursue,block_reason,notes,updated_at&order=name.asc";
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        AddHeaders(request, token);
+        using var response = await Http.SendAsync(request, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode) throw ApiError(body, "Couldn't load the employer directory.");
+        return JsonSerializer.Deserialize<List<EmployerRecord>>(body, JsonOptions) ?? [];
+    }
+
+    public async Task SaveEmployerAsync(EmployerRecord employer, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(employer);
+        if (string.IsNullOrWhiteSpace(employer.Name))
+            throw new ArgumentException("An employer name is required.");
+        employer.NormalizedName = NormalizeEmployerName(employer.Name);
+        if (string.IsNullOrWhiteSpace(employer.NormalizedName))
+            throw new ArgumentException("Enter a valid employer name.");
+        if (employer.DoNotPursue && string.IsNullOrWhiteSpace(employer.BlockReason))
+            throw new ArgumentException("Add a reason before blocking this employer.");
+        employer.PursuitStatus = employer.DoNotPursue ? "do_not_pursue"
+            : employer.PursuitStatus == "do_not_pursue" ? "undecided" : employer.PursuitStatus;
+        employer.UpdatedAt = DateTimeOffset.UtcNow;
+        var token = await GetValidAccessTokenAsync()
+            ?? throw new InvalidOperationException("Sign in to JobFlow Cloud before saving employer decisions.");
+        using var request = new HttpRequestMessage(HttpMethod.Post,
+            $"{ProjectUrl}/rest/v1/employers?on_conflict=normalized_name");
+        AddHeaders(request, token);
+        request.Headers.TryAddWithoutValidation("Prefer", "resolution=merge-duplicates,return=minimal");
+        request.Content = new StringContent(JsonSerializer.Serialize(employer), Encoding.UTF8, "application/json");
+        using var response = await Http.SendAsync(request, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode) throw ApiError(body, "Couldn't save the employer decision.");
+    }
+
+    private async Task EnsureEmployersExistAsync(IReadOnlyCollection<JobFeedItem> jobs, CancellationToken cancellationToken)
+    {
+        var known = (await GetEmployersAsync(cancellationToken))
+            .Select(employer => employer.NormalizedName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var job in jobs)
+        {
+            var normalized = NormalizeEmployerName(job.Company);
+            if (string.IsNullOrWhiteSpace(normalized) || known.Contains(normalized)) continue;
+            var employer = new EmployerRecord
+            {
+                NormalizedName = normalized,
+                Name = job.Company.Trim(),
+                Summary = job.CompanySummary,
+                PursuitStatus = "undecided",
+                DoNotPursue = false
+            };
+            await SaveEmployerAsync(employer, cancellationToken);
+            known.Add(normalized);
+        }
+    }
+
+    public static string NormalizeEmployerName(string? name) =>
+        string.IsNullOrWhiteSpace(name)
+            ? string.Empty
+            : new string(name.Trim().ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
 
     private static void CopyIfMissing(JsonObject target, string targetKey, string sourceKey)
     {
