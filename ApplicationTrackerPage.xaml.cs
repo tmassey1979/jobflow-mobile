@@ -54,8 +54,10 @@ public partial class ApplicationTrackerPage : ContentPage
         }
         catch (Exception ex)
         {
-            var message = ex.Message?.Trim() ?? "Sync failed";
-            CloudSyncLabel.Text = $"Cloud tracking sync: {message}";
+            var message = ex.ToString();
+            try { await Clipboard.Default.SetTextAsync(message); }
+            catch { /* Clipboard failure must not hide the original sync error. */ }
+            CloudSyncLabel.Text = $"Cloud tracking sync: {ex.Message?.Trim() ?? "Sync failed"}";
             if (CloudSyncLabel.Text.Length > 180)
                 CloudSyncLabel.Text = CloudSyncLabel.Text[..177] + "…";
         }
