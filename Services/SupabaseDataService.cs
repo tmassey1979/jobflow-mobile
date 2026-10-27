@@ -7,7 +7,7 @@ using JobFlow.Mobile.Models;
 namespace JobFlow.Mobile.Services;
 
 /// <summary>
-/// Supabase Auth + per-user JobFlow feed access. The publishable key is public by design;
+/// Supabase Auth, shared job-listing feed access, and private per-user application-kit lookup. The publishable key is public by design;
 /// every database request also carries the signed-in user's JWT and is enforced by RLS.
 /// Never put a service-role/secret key in this Android app.
 /// </summary>
