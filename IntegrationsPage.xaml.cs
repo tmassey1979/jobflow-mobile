@@ -205,6 +205,15 @@ public partial class IntegrationsPage : ContentPage
         }
         catch (Exception ex)
         {
+            if (ex.Message.StartsWith("Account request received.", StringComparison.OrdinalIgnoreCase))
+            {
+                SupabaseStateLabel.Text = "Check email";
+                SupabasePasswordEntry.Text = "";
+                SupabaseDetailsLabel.Text = ex.Message;
+                await DisplayAlertAsync("Confirm your email", ex.Message, "OK");
+                return;
+            }
+
             SupabaseStateLabel.Text = "Not connected";
             SupabaseDetailsLabel.Text = UserSafeMessage(ex);
             await DisplayAlertAsync("Supabase sign-in", UserSafeMessage(ex), "OK");
