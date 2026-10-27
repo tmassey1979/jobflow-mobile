@@ -101,23 +101,52 @@ public sealed class SupabaseDataService
             if (!row.TryGetProperty("metadata", out var metadata) || metadata.ValueKind != JsonValueKind.Object) continue;
             var node = JsonNode.Parse(metadata.GetRawText())?.AsObject();
             if (node is null) continue;
-            if (!node.ContainsKey("job_id") && row.TryGetProperty("stable_job_id", out var stableId))
-                node["job_id"] = stableId.GetString();
-            if (!node.ContainsKey("verified_at") && row.TryGetProperty("verified_at", out var verified))
-                node["verified_at"] = verified.ValueKind == JsonValueKind.String ? verified.GetString() : null;
+
+            // The shared feed stores the employer name as "employer", while JobFeedItem
+            // expects "company". Normalize the feed contract before deserializing so valid
+            // Supabase rows aren't silently discarded by the required-field check.
+            CopyIfMissing(node, "company", "employer");
+            CopyIfMissing(node, "job_id", "stable_job_id", row);
+            CopyIfMissing(node, "verified_at", "verified_at", row);
+            CopyIfMissing(node, "application_url", "direct_application_url");
+            CopyIfMissing(node, "remote_scope", "remote_eligibility");
+            CopyIfMissing(node, "match_score", "fit_score");
+
             var job = node.Deserialize<JobFeedItem>(JsonOptions);
             if (job is not null && !string.IsNullOrWhiteSpace(job.JobId)
                 && !string.IsNullOrWhiteSpace(job.Title) && !string.IsNullOrWhiteSpace(job.Company))
                 jobs.Add(job);
         }
         var unique = jobs.DistinctBy(job => job.JobId, StringComparer.OrdinalIgnoreCase).ToList();
-        if (unique.Count == 0) throw new InvalidOperationException("Supabase returned no valid jobs for this account yet. The daily feed writer still needs to be connected.");
+        if (unique.Count == 0)
+            throw new InvalidOperationException("Supabase returned rows, but none matched the app's required job fields (job ID, title, and employer). Check the shared feed metadata mapping.");
         return new DailyFeed
         {
             SchemaVersion = 1,
             GeneratedAt = DateTime.UtcNow.ToString("O"),
             Jobs = unique,
             SourcePath = $"Supabase · {unique.Count} jobs"
+        };
+    }
+
+    private static void CopyIfMissing(JsonObject target, string targetKey, string sourceKey)
+    {
+        if (target.ContainsKey(targetKey) || !target.TryGetPropertyValue(sourceKey, out var source) || source is null)
+            return;
+        target[targetKey] = source.DeepClone();
+    }
+
+    private static void CopyIfMissing(JsonObject target, string targetKey, string sourceKey, JsonElement row)
+    {
+        if (target.ContainsKey(targetKey) || !row.TryGetProperty(sourceKey, out var source))
+            return;
+        target[targetKey] = source.ValueKind switch
+        {
+            JsonValueKind.String => JsonValue.Create(source.GetString()),
+            JsonValueKind.Number => JsonValue.Create(source.GetRawText()),
+            JsonValueKind.True => JsonValue.Create(true),
+            JsonValueKind.False => JsonValue.Create(false),
+            _ => null
         };
     }
 
