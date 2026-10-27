@@ -66,7 +66,7 @@ public partial class JobDetailPage : ContentPage
             {
                 if (await _supabaseService.IsSignedInAsync())
                 {
-                    await _supabaseService.UpsertApplicationTrackingAsync(record);
+                    await _supabaseService.UpsertApplicationTrackingBatchAsync(await _applicationTracker.GetAllAsync());
                     syncMessage = "cloud synced";
                 }
             }
