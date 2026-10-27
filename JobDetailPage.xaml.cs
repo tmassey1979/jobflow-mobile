@@ -6,7 +6,6 @@ namespace JobFlow.Mobile;
 public partial class JobDetailPage : ContentPage
 {
     private readonly JobFeedItem _job;
-    private readonly GitHubDataService _dataService = new();
     private readonly SupabaseDataService _supabaseService = new();
     private readonly ApplicationTrackerService _applicationTracker = new();
 
@@ -96,40 +95,6 @@ public partial class JobDetailPage : ContentPage
             DocumentKind.CoverLetter => "cover",
             _ => "metadata"
         };
-
-        try
-        {
-            if (await _supabaseService.IsSignedInAsync())
-            {
-                var cloudContent = await _supabaseService.GetJobDocumentAsync(_job.JobId, documentKind);
-                if (!string.IsNullOrWhiteSpace(cloudContent))
-                {
-                    var cloudTitle = kind switch
-                    {
-                        DocumentKind.Metadata => "Metadata",
-                        DocumentKind.Resume => "Resume",
-                        _ => "Cover letter"
-                    };
-                    StatusLabel.Text = $"Opened {cloudTitle.ToLowerInvariant()} from Supabase.";
-                    await Navigation.PushAsync(new DocumentViewerPage(
-                        cloudTitle, $"{_job.Title} · {_job.Company}", "Supabase cloud record", cloudContent));
-                    return;
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            StatusLabel.Text = $"Cloud document unavailable: {ex.Message}";
-        }
-
-        var token = await GitHubAccountStore.GetAccessTokenAsync();
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            await DisplayAlertAsync("Sign in required", "Sign in with GitHub on the Integrations tab before opening documents.", "OK");
-            return;
-        }
-
-        var (owner, repo) = await GitHubAccountStore.GetSelectedRepositoryAsync();
         var title = kind switch
         {
             DocumentKind.Metadata => "Metadata",
@@ -137,71 +102,33 @@ public partial class JobDetailPage : ContentPage
             _ => "Cover letter"
         };
         var subtitle = $"{_job.Title} · {_job.Company}";
-        var candidates = BuildDocumentPaths(_job, kind);
 
-        if (candidates.Count == 0)
+        try
         {
-            await Navigation.PushAsync(new DocumentViewerPage(title, subtitle, "No document path is available for this job in the feed."));
-            return;
-        }
-
-        StatusLabel.Text = $"Loading {title.ToLowerInvariant()}…";
-        Exception? lastError = null;
-        foreach (var path in candidates)
-        {
-            try
+            if (!await _supabaseService.IsSignedInAsync())
             {
-                var text = await _dataService.ReadTextFileAsync(path, token, owner, repo);
-                if (string.IsNullOrWhiteSpace(text))
-                {
-                    lastError = new InvalidOperationException("The file was empty.");
-                    continue;
-                }
-
-                StatusLabel.Text = $"Opened {title.ToLowerInvariant()}.";
-                await Navigation.PushAsync(new DocumentViewerPage(title, subtitle, $"{owner}/{repo}/{path}", text));
+                await DisplayAlertAsync("Sign in required", "Sign in to your JobFlow Cloud account on the Integrations tab before opening application kits.", "OK");
                 return;
             }
-            catch (Exception ex)
+
+            StatusLabel.Text = $"Loading {title.ToLowerInvariant()} from cloud…";
+            var content = await _supabaseService.GetJobDocumentAsync(_job.JobId, documentKind);
+            if (string.IsNullOrWhiteSpace(content))
             {
-                lastError = ex;
+                await Navigation.PushAsync(new DocumentViewerPage(
+                    title, subtitle, "This cloud record does not contain that document yet."));
+                return;
             }
+
+            StatusLabel.Text = $"Opened {title.ToLowerInvariant()} from cloud.";
+            await Navigation.PushAsync(new DocumentViewerPage(title, subtitle, "Supabase cloud record", content));
         }
-
-        StatusLabel.Text = $"Could not open {title.ToLowerInvariant()}.";
-        var detail = lastError?.Message ?? "File not found.";
-        await Navigation.PushAsync(new DocumentViewerPage(
-            title,
-            subtitle,
-            $"Could not read this document from {owner}/{repo}. Tried: {string.Join(", ", candidates)}. {detail}"));
-    }
-
-    private static List<string> BuildDocumentPaths(JobFeedItem job, DocumentKind kind)
-    {
-        var paths = new List<string>();
-        string? preferred = kind switch
+        catch (Exception ex)
         {
-            DocumentKind.Metadata => job.MetadataPath,
-            DocumentKind.Resume => job.ResumePath,
-            _ => job.CoverLetterPath
-        };
-        if (!string.IsNullOrWhiteSpace(preferred))
-            paths.Add(preferred.Trim().TrimStart('/'));
-
-        if (!string.IsNullOrWhiteSpace(job.JobId))
-        {
-            var fileName = kind switch
-            {
-                DocumentKind.Metadata => "metadata.json",
-                DocumentKind.Resume => "resume.md",
-                _ => "cover-letter.md"
-            };
-            var fallback = $"jobs/{job.JobId}/{fileName}";
-            if (!paths.Contains(fallback, StringComparer.OrdinalIgnoreCase))
-                paths.Add(fallback);
+            StatusLabel.Text = $"Could not load {title.ToLowerInvariant()}.";
+            await Navigation.PushAsync(new DocumentViewerPage(
+                title, subtitle, $"Supabase document request failed: {ex.Message}"));
         }
-
-        return paths;
     }
 
     private static string DisplayOrUnknown(string? value) =>
