@@ -13,7 +13,25 @@
                     <Label Text="Connect the services JobFlow can read." FontSize="13" TextColor="{StaticResource MutedInk}" />
                 </VerticalStackLayout>
             </Grid>
-            <Label Text="Sign in with GitHub in the browser, then choose which private data repository JobFlow may read. No token paste." FontSize="14" TextColor="{StaticResource MutedInk}" />
+            <Label Text="Connect Supabase for cloud sync, or use GitHub as the legacy feed source." FontSize="14" TextColor="{StaticResource MutedInk}" />
+
+            <Border Stroke="#B9CBEA" StrokeShape="RoundRectangle 14" Padding="16" BackgroundColor="White">
+                <VerticalStackLayout Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Supabase · Cloud JobFlow" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                        <Label x:Name="SupabaseStateLabel" Grid.Column="1" Text="Not connected" FontSize="12" TextColor="{StaticResource MutedInk}" VerticalOptions="Center" />
+                    </Grid>
+                    <Label Text="Sign in or create your JobFlow account to load the cloud feed. Your session is stored in Android Secure Storage; row-level security limits database access to your account." FontSize="12" TextColor="{StaticResource MutedInk}" />
+                    <Entry x:Name="SupabaseEmailEntry" Placeholder="Email address" Keyboard="Email" TextColor="{StaticResource Ink}" />
+                    <Entry x:Name="SupabasePasswordEntry" Placeholder="Password (6+ characters)" IsPassword="True" TextColor="{StaticResource Ink}" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button Text="Sign in" Clicked="OnSupabaseSignInClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
+                        <Button Grid.Column="1" Text="Create account" Clicked="OnSupabaseSignUpClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
+                    </Grid>
+                    <Button x:Name="DisconnectSupabaseButton" Text="Sign out of Supabase" Clicked="OnSupabaseSignOutClicked" IsVisible="False" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="10" />
+                    <Label x:Name="SupabaseDetailsLabel" Text="Cloud sync is not connected." FontSize="12" TextColor="{StaticResource MutedInk}" />
+                </VerticalStackLayout>
+            </Border>
 
             <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="16" BackgroundColor="White">
                 <VerticalStackLayout Spacing="10">
@@ -52,7 +70,7 @@
                 </VerticalStackLayout>
             </Border>
 
-            <Label Text="Privacy: credentials stay in Android Secure Storage on this device. Signing out removes the GitHub session locally." FontSize="12" TextColor="{StaticResource MutedInk}" />
+            <Label Text="Privacy: account sessions stay in Android Secure Storage on this device. Signing out removes the selected session locally." FontSize="12" TextColor="{StaticResource MutedInk}" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>
