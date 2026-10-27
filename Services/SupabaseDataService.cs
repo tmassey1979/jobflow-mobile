@@ -111,6 +111,7 @@ public sealed class SupabaseDataService
             CopyIfMissing(node, "application_url", "direct_application_url");
             CopyIfMissing(node, "remote_scope", "remote_eligibility");
             CopyIfMissing(node, "match_score", "fit_score");
+            NormalizeStringField(node, "remote_scope");
 
             var job = node.Deserialize<JobFeedItem>(JsonOptions);
             if (job is not null && !string.IsNullOrWhiteSpace(job.JobId)
@@ -127,6 +128,34 @@ public sealed class SupabaseDataService
             Jobs = unique,
             SourcePath = $"Supabase · {unique.Count} jobs"
         };
+    }
+
+    private static void NormalizeStringField(JsonObject target, string key)
+    {
+        if (!target.TryGetPropertyValue(key, out var value) || value is null)
+            return;
+
+        if (value is JsonValue scalar && scalar.TryGetValue<string>(out _))
+            return;
+
+        if (value is JsonObject obj)
+        {
+            foreach (var candidate in new[] { "label", "scope", "type", "value", "description", "eligibility" })
+            {
+                if (obj.TryGetPropertyValue(candidate, out var candidateValue)
+                    && candidateValue is JsonValue candidateScalar
+                    && candidateScalar.TryGetValue<string>(out var text)
+                    && !string.IsNullOrWhiteSpace(text))
+                {
+                    target[key] = text;
+                    return;
+                }
+            }
+        }
+
+        // Some feed producers publish remote_scope as a structured object or array.
+        // Keep its content rather than failing the entire feed deserialization.
+        target[key] = value.ToJsonString();
     }
 
     private static void CopyIfMissing(JsonObject target, string targetKey, string sourceKey)
