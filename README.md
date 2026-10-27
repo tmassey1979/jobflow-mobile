@@ -4,9 +4,9 @@ Private, Android-only JobFlow app built with .NET MAUI and C#.
 
 ## What works today
 
-- **Jobs tab** — load the signed-in user's cloud feed from Supabase, with GitHub Device Login retained as a legacy feed source; open HTTPS application links and track jobs locally.
+- **Jobs tab** — load the signed-in user's cloud feed from Supabase, open HTTPS application links, and track jobs locally.
 - **Applications tab** — search, set stage, notes, and follow-up dates (device-local SQLite only).
-- **Integrations tab** — create/sign in to a Supabase account for cloud feed access, or sign in through GitHub and choose a legacy feed repository.
+- **Integrations tab** — create/sign in to a Supabase account for cloud feed access.
 - **Offline** — last successful feed is cached locally; app still opens without network.
 
 No applications are submitted. The Supabase client uses a publishable key plus the user session and relies on row-level security; never add a service-role key to the Android app. The scheduled feed writer must be configured separately before the cloud feed will contain jobs. Application tracking remains device-local in this version.
@@ -44,12 +44,12 @@ If you previously installed an APK signed with the temporary CI debug key, unins
 
 ## First-run checklist
 
-1. Open the app → **Integrations** → **Sign in with GitHub**.
-2. Approve access in the browser and choose the private data repository.
-3. Confirm jobs appear on the Jobs tab.
-4. Use **Track application** on a job card, then open the Applications tab.
+1. Open the app → **Integrations** → create or sign in to your JobFlow Cloud account.
+2. Open **Jobs** and tap **Sync all**.
+3. Confirm cloud jobs appear on the Jobs tab once the scheduled feed writer is connected.
+4. Use **Track** on a job card, then open the Applications tab.
 
-The app reads the private daily feed. Recruiter outreach, form submission, and writes back to GitHub are not implemented.
+The app reads the signed-in user's Supabase feed. The legacy GitHub account integration has been removed. Recruiter outreach, form submission, and cloud application-tracker sync are not implemented yet.
 
 ## Graphics
 
