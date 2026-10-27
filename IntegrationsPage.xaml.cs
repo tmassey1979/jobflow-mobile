@@ -7,6 +7,7 @@ namespace JobFlow.Mobile;
 public partial class IntegrationsPage : ContentPage
 {
     private readonly GitHubDataService _dataService = new();
+    private readonly SupabaseDataService _supabaseService = new();
     private readonly GitHubAuthService _authService = new();
     private readonly IntegrationConnection _gitHubConnection = new("github", "GitHub");
     private CancellationTokenSource? _loginCts;
@@ -15,6 +16,7 @@ public partial class IntegrationsPage : ContentPage
     {
         InitializeComponent();
         _ = InitializeConnectionAsync();
+        _ = RefreshSupabaseStateAsync();
     }
 
     private async Task InitializeConnectionAsync()
@@ -145,6 +147,75 @@ public partial class IntegrationsPage : ContentPage
         DisconnectGitHubButton.IsVisible = true;
 
         await ChooseAndSaveRepositoryAsync(accessToken);
+    }
+
+
+    private async Task RefreshSupabaseStateAsync()
+    {
+        try
+        {
+            var email = await _supabaseService.GetEmailAsync();
+            if (await _supabaseService.IsSignedInAsync())
+            {
+                SupabaseStateLabel.Text = "Connected";
+                SupabaseDetailsLabel.Text = $"Signed in as {email}. Jobs load from Supabase when you sync.";
+                SupabaseEmailEntry.Text = email;
+                DisconnectSupabaseButton.IsVisible = true;
+            }
+            else
+            {
+                SupabaseStateLabel.Text = "Not connected";
+                SupabaseDetailsLabel.Text = "Sign in or create an account to connect cloud jobs.";
+                DisconnectSupabaseButton.IsVisible = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            SupabaseStateLabel.Text = "Check connection";
+            SupabaseDetailsLabel.Text = UserSafeMessage(ex);
+        }
+    }
+
+    private async void OnSupabaseSignInClicked(object sender, EventArgs e)
+    {
+        await RunSupabaseAuthAsync(async () =>
+        {
+            await _supabaseService.SignInAsync(SupabaseEmailEntry.Text ?? "", SupabasePasswordEntry.Text ?? "");
+            await RefreshSupabaseStateAsync();
+        });
+    }
+
+    private async void OnSupabaseSignUpClicked(object sender, EventArgs e)
+    {
+        await RunSupabaseAuthAsync(async () =>
+        {
+            await _supabaseService.SignUpAsync(SupabaseEmailEntry.Text ?? "", SupabasePasswordEntry.Text ?? "");
+            SupabasePasswordEntry.Text = "";
+            await RefreshSupabaseStateAsync();
+        });
+    }
+
+    private async Task RunSupabaseAuthAsync(Func<Task> action)
+    {
+        try
+        {
+            SupabaseStateLabel.Text = "Working…";
+            SupabaseDetailsLabel.Text = "Connecting securely to Supabase…";
+            await action();
+        }
+        catch (Exception ex)
+        {
+            SupabaseStateLabel.Text = "Not connected";
+            SupabaseDetailsLabel.Text = UserSafeMessage(ex);
+            await DisplayAlertAsync("Supabase sign-in", UserSafeMessage(ex), "OK");
+        }
+    }
+
+    private async void OnSupabaseSignOutClicked(object sender, EventArgs e)
+    {
+        await _supabaseService.SignOutAsync();
+        SupabasePasswordEntry.Text = "";
+        await RefreshSupabaseStateAsync();
     }
 
     private async void OnSignInGitHubClicked(object sender, EventArgs e)
