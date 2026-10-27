@@ -141,7 +141,7 @@ public sealed class SupabaseDataService
                 ApplicationStages.ReadyToApply => "ready_for_approval",
                 ApplicationStages.Applied => "applied",
                 ApplicationStages.Interviewing => "interview",
-                ApplicationStages.Offer => "interview",
+                ApplicationStages.Offer => "offer",
                 ApplicationStages.Rejected => "rejected",
                 _ => "discovered"
             },
