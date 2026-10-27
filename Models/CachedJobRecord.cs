@@ -3,8 +3,8 @@ using SQLite;
 namespace JobFlow.Mobile.Models;
 
 /// <summary>
-/// A locally cached copy of a validated feed job. Imported source facts are separate
-/// from application notes and are keyed case-insensitively by the feed's stable job_id.
+/// A locally cached copy of a validated feed job. JobJson preserves newly added feed fields
+/// across offline launches without requiring a SQLite column for every metadata field.
 /// </summary>
 [Table("cached_jobs")]
 public sealed class CachedJobRecord
@@ -41,6 +41,8 @@ public sealed class CachedJobRecord
     public string? CoverLetterPath { get; set; }
 
     public string? ApplicationTrackingPath { get; set; }
+
+    public string? JobJson { get; set; }
 
     public string? FeedSourcePath { get; set; }
 
