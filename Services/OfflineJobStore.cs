@@ -1,3 +1,4 @@
+using System.Text.Json;
 using JobFlow.Mobile.Models;
 using SQLite;
 
@@ -58,6 +59,7 @@ public sealed class OfflineJobStore
                 ResumePath = job.ResumePath,
                 CoverLetterPath = job.CoverLetterPath,
                 ApplicationTrackingPath = job.ApplicationTrackingPath,
+                JobJson = JsonSerializer.Serialize(job),
                 FeedSourcePath = feed.SourcePath,
                 FeedGeneratedAt = feed.GeneratedAt,
                 ImportedAtUtc = DateTime.UtcNow
