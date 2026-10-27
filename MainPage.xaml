@@ -20,7 +20,7 @@
                 <Button x:Name="LoadButton" Grid.Column="1" Text="Sync all" Clicked="OnLoadJobsClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="8" Padding="12,8" FontSize="13" />
             </Grid>
 
-            <Label x:Name="StatusLabel" Text="Pull down to import every job from your data repo." FontSize="12" TextColor="{StaticResource MutedInk}" />
+            <Label x:Name="StatusLabel" Text="Pull down or tap Sync all to refresh cloud jobs." FontSize="12" TextColor="{StaticResource MutedInk}" />
             <Label x:Name="FeedDateLabel" FontSize="11" TextColor="{StaticResource MutedInk}" />
         </VerticalStackLayout>
 
@@ -35,7 +35,7 @@
                                HorizontalOptions="Center"
                                SemanticProperties.Description="Illustration of a quiet signal with no jobs yet" />
                         <Label Text="No jobs imported yet" FontSize="16" FontAttributes="Bold" TextColor="{StaticResource Ink}" HorizontalTextAlignment="Center" />
-                        <Label Text="Sign in on Integrations, choose your data repo, then pull down or tap Sync all to import every daily feed." TextColor="{StaticResource MutedInk}" FontSize="13" HorizontalTextAlignment="Center" />
+                        <Label Text="Sign in on Integrations, then pull down or tap Sync all to load your cloud feed." TextColor="{StaticResource MutedInk}" FontSize="13" HorizontalTextAlignment="Center" />
                     </VerticalStackLayout>
                 </CollectionView.EmptyView>
                 <CollectionView.ItemTemplate>
