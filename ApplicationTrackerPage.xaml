@@ -46,6 +46,7 @@
                                 <Button Grid.Column="1" Text="Follow-up" Clicked="OnFollowUpClicked" CommandParameter="{Binding JobId}" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="6" Padding="6,6" FontSize="12" />
                                 <Button Grid.Column="2" Text="Notes" Clicked="OnEditNotesClicked" CommandParameter="{Binding JobId}" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="6" Padding="6,6" FontSize="12" />
                             </Grid>
+                            <Button Text="View job details, resume &amp; cover letter" Clicked="OnDetailsClicked" CommandParameter="{Binding JobId}" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="6" Padding="6,8" FontSize="12" Margin="0,4,0,0" />
                             <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
                                 <Button Grid.Column="0" Text="Apply link" Clicked="OnOpenApplicationClicked" CommandParameter="{Binding ApplicationUrl}" BackgroundColor="#F1F3F7" TextColor="{StaticResource Ink}" CornerRadius="6" Padding="6,6" FontSize="12" />
                                 <Button Grid.Column="1" Text="Remove" Clicked="OnRemoveClicked" CommandParameter="{Binding JobId}" BackgroundColor="#F1F3F7" TextColor="{StaticResource Ink}" CornerRadius="6" Padding="6,6" FontSize="12" />

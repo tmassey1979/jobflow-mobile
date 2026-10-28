@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using JobFlow.Mobile.Models;
 using JobFlow.Mobile.Services;
 
@@ -8,6 +9,7 @@ public partial class ApplicationTrackerPage : ContentPage
 {
     private readonly ApplicationTrackerService _tracker = new();
     private readonly SupabaseDataService _supabase = new();
+    private readonly OfflineJobStore _offlineJobs = new();
     private IReadOnlyList<ApplicationRecord> _allRecords = Array.Empty<ApplicationRecord>();
     private FollowUpFilter _followUpFilter = FollowUpFilter.All;
     private string? _stageFilter;
@@ -333,6 +335,61 @@ public partial class ApplicationTrackerPage : ContentPage
         catch
         {
             await DisplayAlertAsync("Couldn't remove record", "The local application record could not be removed. Please try again.", "OK");
+        }
+    }
+
+    private async void OnDetailsClicked(object sender, EventArgs e)
+    {
+        if (sender is not Button { CommandParameter: string jobId }
+            || string.IsNullOrWhiteSpace(jobId))
+            return;
+
+        try
+        {
+            // The feed cache preserves the complete validated job JSON, so details remain
+            // available even after the job disappears from the current feed or the device goes offline.
+            var cached = await _offlineJobs.FindAsync(jobId);
+            JobFeedItem? job = null;
+            if (!string.IsNullOrWhiteSpace(cached?.JobJson))
+            {
+                try
+                {
+                    job = JsonSerializer.Deserialize<JobFeedItem>(cached.JobJson);
+                }
+                catch (JsonException)
+                {
+                    // Older or malformed cache rows fall back to the stable tracker fields below.
+                }
+            }
+
+            var tracked = _allRecords.FirstOrDefault(r => r.JobId == jobId);
+            job ??= new JobFeedItem
+            {
+                JobId = jobId,
+                Title = cached?.Title ?? tracked?.Title ?? "Unknown role",
+                Company = cached?.Company ?? tracked?.Company ?? "Unknown company",
+                SalaryMinUsd = cached?.SalaryMinUsd,
+                SalaryMaxUsd = cached?.SalaryMaxUsd,
+                SalaryPayType = cached?.SalaryPayType,
+                RemoteScope = cached?.RemoteScope,
+                VerifiedAt = cached?.VerifiedAt,
+                PostingDate = cached?.PostingDate,
+                ApplicationUrl = cached?.ApplicationUrl ?? tracked?.ApplicationUrl,
+                MatchScore = cached?.MatchScore,
+                MetadataPath = cached?.MetadataPath,
+                ResumePath = cached?.ResumePath,
+                CoverLetterPath = cached?.CoverLetterPath,
+                ApplicationTrackingPath = cached?.ApplicationTrackingPath
+            };
+
+            await Navigation.PushAsync(new JobDetailPage(job));
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlertAsync(
+                "Job details unavailable",
+                $"JobFlow couldn't load the saved details for this application. {ex.Message}",
+                "OK");
         }
     }
 
