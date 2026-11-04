@@ -1,5 +1,7 @@
 using System.Text;
 using System.Text.Json;
+using System.IO.Compression;
+using System.Xml.Linq;
 using JobFlow.Mobile.Services;
 
 namespace JobFlow.Mobile;
@@ -52,19 +54,14 @@ public partial class SettingsPage : ContentPage
         {
             var file = await FilePicker.Default.PickAsync(new PickOptions
             {
-                PickerTitle = "Choose your master resume (.txt or .md)",
+                PickerTitle = "Choose your master resume (.txt, .md, or .docx)",
                 FileTypes = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
                 {
-                    [DevicePlatform.Android] = new[] { "text/plain", "text/markdown", "text/x-markdown" },
-                    [DevicePlatform.WinUI] = new[] { ".txt", ".md" },
-                    [DevicePlatform.macOS] = new[] { "txt", "md" },
-                    [DevicePlatform.iOS] = new[] { "public.plain-text", "net.daringfireball.markdown" }
+                    [DevicePlatform.Android] = new[] { "text/plain", "text/markdown", "text/x-markdown", "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }
                 })
             });
             if (file is null) return;
-            await using var stream = await file.OpenReadAsync();
-            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
-            var content = await reader.ReadToEndAsync();
+            var content = await ReadResumeFileAsync(file);
             if (string.IsNullOrWhiteSpace(content))
                 throw new InvalidOperationException("That file is empty.");
             MasterResumeEditor.Text = content;
@@ -78,6 +75,26 @@ public partial class SettingsPage : ContentPage
         }
     }
 
+    private static async Task<string> ReadResumeFileAsync(FileResult file)
+    {
+        await using var stream = await file.OpenReadAsync();
+        if (Path.GetExtension(file.FileName).Equals(".docx", StringComparison.OrdinalIgnoreCase))
+        {
+            using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
+            var document = archive.GetEntry("word/document.xml")
+                ?? throw new InvalidOperationException("That Word document does not contain a readable document body.");
+            await using var xmlStream = document.Open();
+            var xml = await XDocument.LoadAsync(xmlStream, LoadOptions.None, CancellationToken.None);
+            XNamespace word = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+            var paragraphs = xml.Descendants(word + "p")
+                .Select(paragraph => string.Concat(paragraph.Descendants(word + "t").Select(node => node.Value)))
+                .Where(paragraph => !string.IsNullOrWhiteSpace(paragraph));
+            return string.Join(Environment.NewLine, paragraphs);
+        }
+
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        return await reader.ReadToEndAsync();
+    }
     private async void OnLoadMasterResumeClicked(object sender, EventArgs e)
     {
         try
