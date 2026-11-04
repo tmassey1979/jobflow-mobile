@@ -7,6 +7,7 @@ Private, Android-only JobFlow app built with .NET MAUI and C#.
 - **Jobs tab** — load the authenticated shared job-listing feed from Supabase, open HTTPS application links, and track jobs locally.
 - **Applications tab** — search, set stage, notes, and follow-up dates (device-local SQLite only).
 - **Integrations tab** — create/sign in to a Supabase account for cloud feed access.
+- **Settings → Master resume** — import a `.txt` or `.md` resume, review/edit it, load it from the cloud, and explicitly confirm replacement when saving. The master resume is stored in a dedicated per-user Supabase table protected by RLS.
 - **Offline** — last successful feed is cached locally; app still opens without network.
 
 No applications are submitted. The Supabase client uses a publishable key plus the user session and relies on row-level security; never add a service-role key to the Android app. The scheduled feed writer must be configured separately before the cloud feed will contain jobs. Application tracking remains device-local in this version.
@@ -49,7 +50,7 @@ If you previously installed an APK signed with the temporary CI debug key, unins
 3. Confirm cloud jobs appear on the Jobs tab once the scheduled feed writer is connected.
 4. Use **Track** on a job card, then open the Applications tab.
 
-The app reads shared job-listing metadata from Supabase for authenticated accounts. Tailored resume/cover-letter text is kept out of the shared feed and is not yet synced into the app's private kit records. The legacy GitHub account integration has been removed. Recruiter outreach and form submission are not implemented. Application-tracker changes sync to the signed-in user's private Supabase records when cloud access is available; the app keeps the local SQLite copy for offline use.
+The app reads shared job-listing metadata from Supabase for authenticated accounts. The master resume is stored in `public.master_resumes`, a dedicated per-user table protected by row-level security. Tailored resume/cover-letter text remains in the separate private `job_records` table and is never written to the shared feed or this source repository. The legacy GitHub account integration has been removed. Recruiter outreach and form submission are not implemented. Application-tracker changes sync to the signed-in user's private Supabase records when cloud access is available; the app keeps the local SQLite copy for offline use.
 
 ## Graphics
 
