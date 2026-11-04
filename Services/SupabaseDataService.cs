@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Security.Cryptography;
 using JobFlow.Mobile.Models;
 
 namespace JobFlow.Mobile.Services;
@@ -343,6 +344,59 @@ public sealed class SupabaseDataService
         var column = kind == "resume" ? "resume_md" : "cover_letter_md";
         if (!row.TryGetProperty(column, out var value) || value.ValueKind != JsonValueKind.String) return null;
         return value.GetString();
+    }
+
+    public async Task<MasterResumeDocument?> GetMasterResumeAsync(CancellationToken cancellationToken = default)
+    {
+        var token = await GetValidAccessTokenAsync()
+            ?? throw new InvalidOperationException("Sign in to JobFlow Cloud before loading your master resume.");
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            $"{ProjectUrl}/rest/v1/master_resumes?select=content_md,source_filename,updated_at&limit=1");
+        AddHeaders(request, token);
+        using var response = await Http.SendAsync(request, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            throw ApiError(body, "Couldn't load your private master resume.");
+        using var document = JsonDocument.Parse(body);
+        var row = document.RootElement.EnumerateArray().FirstOrDefault();
+        if (row.ValueKind != JsonValueKind.Object) return null;
+        var text = row.TryGetProperty("content_md", out var contentValue) ? contentValue.GetString() : null;
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var filename = row.TryGetProperty("source_filename", out var filenameValue)
+            && filenameValue.ValueKind == JsonValueKind.String ? filenameValue.GetString() : null;
+        var updated = row.TryGetProperty("updated_at", out var updatedValue)
+            && updatedValue.ValueKind == JsonValueKind.String
+            && DateTime.TryParse(updatedValue.GetString(), out var parsed)
+                ? DateTime.SpecifyKind(parsed, DateTimeKind.Utc)
+                : DateTime.UtcNow;
+        return new MasterResumeDocument(text, filename, updated);
+    }
+
+    public async Task SaveMasterResumeAsync(string content, string? sourceFilename = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            throw new ArgumentException("Master resume content cannot be empty.", nameof(content));
+        if (content.Length > 200_000)
+            throw new ArgumentException("Master resume is too large. Keep it under 200,000 characters.", nameof(content));
+        var token = await GetValidAccessTokenAsync()
+            ?? throw new InvalidOperationException("Sign in to JobFlow Cloud before saving your master resume.");
+        var payload = new
+        {
+            content_md = content.Trim(),
+            source_filename = string.IsNullOrWhiteSpace(sourceFilename) ? null : Path.GetFileName(sourceFilename),
+            content_sha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content.Trim()))).ToLowerInvariant(),
+            updated_at = DateTime.UtcNow.ToString("O")
+        };
+        using var request = new HttpRequestMessage(HttpMethod.Post,
+            $"{ProjectUrl}/rest/v1/master_resumes?on_conflict=user_id");
+        AddHeaders(request, token);
+        request.Headers.TryAddWithoutValidation("Prefer", "resolution=merge-duplicates,return=minimal");
+        request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        using var response = await Http.SendAsync(request, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            throw ApiError(body, "Couldn't save your private master resume.");
     }
 
     private async Task<string?> GetValidAccessTokenAsync()
