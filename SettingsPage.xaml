@@ -15,6 +15,19 @@
                     <Button Text="Open Cloud Account" Clicked="OnOpenIntegrationsClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
                 </VerticalStackLayout>
             </Border>
+            <Border Stroke="#B9CBEA" StrokeShape="RoundRectangle 14" Padding="16" BackgroundColor="White">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Master resume" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                    <Label Text="Import a .txt or .md file, or paste your resume below. It is saved only to your signed-in private JobFlow account and is never added to the shared jobs feed or source repository." FontSize="12" TextColor="{StaticResource MutedInk}" />
+                    <Label x:Name="MasterResumeStatusLabel" Text="Not loaded" FontSize="12" TextColor="{StaticResource MutedInk}" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button Text="Import file" Clicked="OnImportMasterResumeClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
+                        <Button Grid.Column="1" Text="Load from cloud" Clicked="OnLoadMasterResumeClicked" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="10" />
+                    </Grid>
+                    <Editor x:Name="MasterResumeEditor" Placeholder="Paste your complete master resume here…" AutoSize="TextChanges" MinimumHeightRequest="220" TextColor="{StaticResource Ink}" />
+                    <Button Text="Save master resume to private cloud" Clicked="OnSaveMasterResumeClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
+                </VerticalStackLayout>
+            </Border>
             <Border Stroke="#D9E0EB" StrokeShape="RoundRectangle 14" Padding="16" BackgroundColor="White">
                 <VerticalStackLayout Spacing="8">
                     <Label Text="Local data" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
