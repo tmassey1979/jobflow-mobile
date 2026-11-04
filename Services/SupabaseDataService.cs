@@ -346,6 +346,104 @@ public sealed class SupabaseDataService
         return value.GetString();
     }
 
+    /// <summary>
+    /// Imports generated documents staged by the trusted JobFlow generator. The handoff queue is
+    /// readable only by the owning signed-in user; writes into job_records use that user's JWT.
+    /// Existing non-empty documents are never overwritten.
+    /// </summary>
+    public async Task<int> ImportPendingKitHandoffsAsync(CancellationToken cancellationToken = default)
+    {
+        var token = await GetValidAccessTokenAsync()
+            ?? throw new InvalidOperationException("Sign in to JobFlow Cloud before syncing generated application kits.");
+
+        using var listRequest = new HttpRequestMessage(HttpMethod.Get,
+            $"{ProjectUrl}/rest/v1/private_kit_handoffs?select=stable_job_id,metadata,resume_md,cover_letter_md&order=created_at.asc");
+        AddHeaders(listRequest, token);
+        using var listResponse = await Http.SendAsync(listRequest, cancellationToken);
+        var listBody = await listResponse.Content.ReadAsStringAsync(cancellationToken);
+        if (!listResponse.IsSuccessStatusCode)
+            throw ApiError(listBody, "Couldn't check for generated application kits.");
+
+        using var handoffs = JsonDocument.Parse(listBody);
+        var imported = 0;
+        foreach (var handoff in handoffs.RootElement.EnumerateArray())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!handoff.TryGetProperty("stable_job_id", out var idValue)
+                || string.IsNullOrWhiteSpace(idValue.GetString()))
+                continue;
+
+            var jobId = idValue.GetString()!;
+            var escapedId = Uri.EscapeDataString(jobId);
+            var incomingResume = ReadOptionalText(handoff, "resume_md");
+            var incomingCover = ReadOptionalText(handoff, "cover_letter_md");
+            var metadata = handoff.TryGetProperty("metadata", out var metadataValue)
+                && metadataValue.ValueKind == JsonValueKind.Object
+                    ? JsonNode.Parse(metadataValue.GetRawText())
+                    : new JsonObject();
+
+            using var existingRequest = new HttpRequestMessage(HttpMethod.Get,
+                $"{ProjectUrl}/rest/v1/job_records?select=resume_md,cover_letter_md&stable_job_id=eq.{escapedId}&limit=1");
+            AddHeaders(existingRequest, token);
+            using var existingResponse = await Http.SendAsync(existingRequest, cancellationToken);
+            var existingBody = await existingResponse.Content.ReadAsStringAsync(cancellationToken);
+            if (!existingResponse.IsSuccessStatusCode)
+                throw ApiError(existingBody, $"Couldn't check the existing kit for {jobId}.");
+
+            using var existingDocument = JsonDocument.Parse(existingBody);
+            var existingRow = existingDocument.RootElement.EnumerateArray().FirstOrDefault();
+            var hasExistingRow = existingRow.ValueKind == JsonValueKind.Object;
+            var existingResume = hasExistingRow ? ReadOptionalText(existingRow, "resume_md") : null;
+            var existingCover = hasExistingRow ? ReadOptionalText(existingRow, "cover_letter_md") : null;
+
+            var payload = new JsonObject();
+            if (!hasExistingRow)
+            {
+                payload["stable_job_id"] = jobId;
+                payload["metadata"] = metadata ?? new JsonObject();
+            }
+            if (string.IsNullOrWhiteSpace(existingResume) && !string.IsNullOrWhiteSpace(incomingResume))
+                payload["resume_md"] = incomingResume;
+            if (string.IsNullOrWhiteSpace(existingCover) && !string.IsNullOrWhiteSpace(incomingCover))
+                payload["cover_letter_md"] = incomingCover;
+
+            if (payload.Count > 0)
+            {
+                var method = hasExistingRow ? HttpMethod.Patch : HttpMethod.Post;
+                var url = hasExistingRow
+                    ? $"{ProjectUrl}/rest/v1/job_records?stable_job_id=eq.{escapedId}"
+                    : $"{ProjectUrl}/rest/v1/job_records?on_conflict=user_id%2Cstable_job_id";
+                using var saveRequest = new HttpRequestMessage(method, url);
+                AddHeaders(saveRequest, token);
+                if (!hasExistingRow)
+                    saveRequest.Headers.TryAddWithoutValidation("Prefer", "resolution=merge-duplicates,return=minimal");
+                saveRequest.Content = new StringContent(payload.ToJsonString(), Encoding.UTF8, "application/json");
+                using var saveResponse = await Http.SendAsync(saveRequest, cancellationToken);
+                var saveBody = await saveResponse.Content.ReadAsStringAsync(cancellationToken);
+                if (!saveResponse.IsSuccessStatusCode)
+                    throw ApiError(saveBody, $"Couldn't save the generated kit for {jobId}.");
+                imported++;
+            }
+
+            // Remove the staged copy only after the authenticated private-record write (or
+            // confirmation that a complete kit already exists) has succeeded.
+            using var deleteRequest = new HttpRequestMessage(HttpMethod.Delete,
+                $"{ProjectUrl}/rest/v1/private_kit_handoffs?stable_job_id=eq.{escapedId}");
+            AddHeaders(deleteRequest, token);
+            using var deleteResponse = await Http.SendAsync(deleteRequest, cancellationToken);
+            var deleteBody = await deleteResponse.Content.ReadAsStringAsync(cancellationToken);
+            if (!deleteResponse.IsSuccessStatusCode)
+                throw ApiError(deleteBody, $"The kit for {jobId} was saved, but its handoff copy could not be cleared.");
+        }
+
+        return imported;
+    }
+
+    private static string? ReadOptionalText(JsonElement row, string propertyName) =>
+        row.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+
     public async Task<MasterResumeDocument?> GetMasterResumeAsync(CancellationToken cancellationToken = default)
     {
         var token = await GetValidAccessTokenAsync()
