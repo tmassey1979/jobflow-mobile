@@ -29,8 +29,28 @@ public partial class ApplicationTrackerPage : ContentPage
     {
         try
         {
+            var importedKits = 0;
+            if (await _supabase.IsSignedInAsync())
+            {
+                try
+                {
+                    importedKits = await _supabase.ImportPendingKitHandoffsAsync();
+                }
+                catch (Exception ex)
+                {
+                    var message = ex.ToString();
+                    try { await Clipboard.Default.SetTextAsync(message); }
+                    catch { /* Keep the original sync error visible if clipboard access fails. */ }
+                    CloudSyncLabel.Text = $"Generated kit sync: {ex.Message?.Trim() ?? "Sync failed"}";
+                    if (CloudSyncLabel.Text.Length > 180)
+                        CloudSyncLabel.Text = CloudSyncLabel.Text[..177] + "…";
+                }
+            }
+
             _allRecords = await _tracker.GetAllAsync();
             await SyncTrackingAsync(_allRecords);
+            if (importedKits > 0)
+                CloudSyncLabel.Text += $" · {importedKits} generated kit(s) imported";
             ApplySearch(SearchEntry.Text);
         }
         catch
