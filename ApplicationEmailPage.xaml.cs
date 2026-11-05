@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.Maui.ApplicationModel.Communication;
 using JobFlow.Mobile.Models;
 using JobFlow.Mobile.Services;
 
