@@ -1,3 +1,4 @@
+using System.Text.Json;
 using JobFlow.Mobile.Models;
 using JobFlow.Mobile.Services;
 
@@ -157,8 +158,46 @@ public partial class JobDetailPage : ContentPage
                 DocumentKind.CoverLetter => _job.CoverLetterDropboxUrl,
                 _ => null
             };
+            var dropboxFilename = kind switch
+            {
+                DocumentKind.Resume => _job.ResumeDropboxFilename,
+                DocumentKind.CoverLetter => _job.CoverLetterDropboxFilename,
+                _ => null
+            };
+
+            // Application records may reference an older offline feed snapshot. Fetch the
+            // latest shared metadata so newly linked Dropbox documents appear without
+            // requiring the user to refresh the Jobs feed first.
+            if (isSignedIn && string.IsNullOrWhiteSpace(dropboxUrl))
+            {
+                var metadataJson = await _supabaseService.GetJobDocumentAsync(_job.JobId, "metadata");
+                if (!string.IsNullOrWhiteSpace(metadataJson))
+                {
+                    try
+                    {
+                        using var metadataDocument = JsonDocument.Parse(metadataJson);
+                        var metadataRoot = metadataDocument.RootElement;
+                        var urlKey = kind == DocumentKind.Resume ? "resume_dropbox_url" : "cover_letter_dropbox_url";
+                        var filenameKey = kind == DocumentKind.Resume ? "resume_dropbox_filename" : "cover_letter_dropbox_filename";
+                        if (metadataRoot.TryGetProperty(urlKey, out var urlValue) && urlValue.ValueKind == JsonValueKind.String)
+                            dropboxUrl = urlValue.GetString();
+                        if (metadataRoot.TryGetProperty(filenameKey, out var filenameValue) && filenameValue.ValueKind == JsonValueKind.String)
+                            dropboxFilename = filenameValue.GetString();
+                    }
+                    catch (JsonException)
+                    {
+                        // A malformed metadata field must not prevent the existing document fallback.
+                    }
+                }
+            }
+
             if (IsSafeDropboxUrl(dropboxUrl) && Uri.TryCreate(dropboxUrl, UriKind.Absolute, out var dropboxUri))
             {
+                if (!string.IsNullOrWhiteSpace(dropboxFilename))
+                {
+                    if (kind == DocumentKind.Resume) ResumePathLabel.Text = $"Resume: {dropboxFilename}";
+                    if (kind == DocumentKind.CoverLetter) CoverPathLabel.Text = $"Cover letter: {dropboxFilename}";
+                }
                 StatusLabel.Text = $"Opening {title.ToLowerInvariant()} in Dropbox…";
                 await Launcher.Default.OpenAsync(dropboxUri);
                 StatusLabel.Text = $"Opened {title.ToLowerInvariant()} in Dropbox.";
