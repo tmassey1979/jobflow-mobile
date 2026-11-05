@@ -67,7 +67,7 @@ public partial class ApplicationEmailPage : ContentPage
         try
         {
             var found = await _contacts.GetForJobAsync(_job.JobId);
-            ShowContacts(found);
+            ShowContacts(found, chooseContact: false);
         }
         catch
         {
@@ -82,7 +82,7 @@ public partial class ApplicationEmailPage : ContentPage
         try
         {
             var found = await _contacts.DiscoverAsync(_job);
-            ShowContacts(found);
+            ShowContacts(found, chooseContact: true);
         }
         catch (Exception ex)
         {
@@ -94,7 +94,7 @@ public partial class ApplicationEmailPage : ContentPage
         }
     }
 
-    private void ShowContacts(IReadOnlyList<RecruiterContactRecord> contacts)
+    private void ShowContacts(IReadOnlyList<RecruiterContactRecord> contacts, bool chooseContact)
     {
         if (contacts.Count == 0)
         {
