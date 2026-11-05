@@ -42,7 +42,7 @@ public sealed class RecruiterContactDiscoveryService
             throw new ArgumentException("A stable job ID is required.", nameof(job));
 
         await _local.InitializeAsync(cancellationToken);
-        var sources = job.SourceUrls
+        var sources = (job.SourceUrls ?? [])
             .Append(job.ApplicationUrl ?? "")
             .Where(IsSafeHttps)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -58,6 +58,8 @@ public sealed class RecruiterContactDiscoveryService
                 request.Headers.UserAgent.ParseAdd("JobFlowMobile/1.0 (public recruiter contact discovery)");
                 using var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
                 if (!response.IsSuccessStatusCode) continue;
+                var finalUrl = response.RequestMessage?.RequestUri?.ToString() ?? source;
+                if (!IsSafeHttps(finalUrl)) continue;
 
                 var mediaType = response.Content.Headers.ContentType?.MediaType;
                 if (mediaType is not null
@@ -81,7 +83,7 @@ public sealed class RecruiterContactDiscoveryService
                         Company = job.Company,
                         ProfessionalRole = "Public contact; role not stated",
                     };
-                    record.SourceUrl = response.RequestMessage?.RequestUri?.ToString() ?? source;
+                    record.SourceUrl = finalUrl;
                     record.VerifiedAtUtc = DateTime.UtcNow;
                     record.VerificationStatus = "Email published on fetched public page";
                     await _db.InsertOrReplaceAsync(record);
@@ -103,24 +105,36 @@ public sealed class RecruiterContactDiscoveryService
     private static IReadOnlyList<string> ExtractEmails(string html)
     {
         var decoded = WebUtility.HtmlDecode(html);
-        decoded = Regex.Replace(decoded, @"(?is)<(script|style|noscript)[^>]*>.*?</\1>", " ");
-        decoded = Regex.Replace(decoded, @"(?s)<[^>]+>", " ");
         var roleContext = new Regex(@"(?i)(recruit(?:er|ing|ment)?|talent|human\s+resources|\bHR\b|career|hiring|jobs?)");
-        return EmailPattern.Matches(decoded)
-            .Where(match =>
-            {
-                var start = Math.Max(0, match.Index - 140);
-                var length = Math.Min(decoded.Length - start, match.Length + 280);
-                var context = decoded.Substring(start, length);
-                var localPart = match.Value.Split('@')[0];
-                return roleContext.IsMatch(context)
-                    || Regex.IsMatch(localPart, @"(?i)(recruit|talent|career|hiring|jobs?|hr)");
-            })
-            .Select(match => match.Value.Trim('.', ',', ';', ':', ')', ']', '}', '"', '\''))
-            .Where(IsValidEmail)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(30)
-            .ToList();
+        var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Preserve published mailto links, including addresses stored only in href attributes.
+        foreach (Match mailto in Regex.Matches(decoded, @"(?i)mailto:([^?""' >]+)"))
+        {
+            var email = WebUtility.UrlDecode(mailto.Groups[1].Value).Trim();
+            var start = Math.Max(0, mailto.Index - 180);
+            var length = Math.Min(decoded.Length - start, mailto.Length + 360);
+            var context = decoded.Substring(start, length);
+            var localPart = email.Split('@')[0];
+            if (IsValidEmail(email) && (roleContext.IsMatch(context)
+                || Regex.IsMatch(localPart, @"(?i)(recruit|talent|career|hiring|jobs?|hr)")))
+                found.Add(email);
+        }
+
+        var visibleText = Regex.Replace(decoded, @"(?is)<(script|style|noscript)[^>]*>.*?</\1>", " ");
+        visibleText = Regex.Replace(visibleText, @"(?s)<[^>]+>", " ");
+        foreach (Match match in EmailPattern.Matches(visibleText))
+        {
+            var start = Math.Max(0, match.Index - 140);
+            var length = Math.Min(visibleText.Length - start, match.Length + 280);
+            var context = visibleText.Substring(start, length);
+            var localPart = match.Value.Split('@')[0];
+            if (roleContext.IsMatch(context)
+                || Regex.IsMatch(localPart, @"(?i)(recruit|talent|career|hiring|jobs?|hr)"))
+                found.Add(match.Value.Trim('.', ',', ';', ':', ')', ']', '}', '"', '\''));
+        }
+
+        return found.Where(IsValidEmail).Take(30).ToList();
     }
 
     private static bool IsValidEmail(string value) =>
