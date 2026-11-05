@@ -46,8 +46,8 @@ public partial class JobDetailPage : ContentPage
             : $"Source URLs:\\n{string.Join("\\n", _job.SourceUrls)}";
 
         MetadataPathLabel.Text = $"Metadata: {DisplayOrUnknown(_job.MetadataPath)}";
-        ResumePathLabel.Text = $"Resume: {DisplayOrUnknown(_job.ResumePath)}";
-        CoverPathLabel.Text = $"Cover letter: {DisplayOrUnknown(_job.CoverLetterPath)}";
+        ResumePathLabel.Text = $"Resume: {DisplayOrUnknown(_job.ResumeDropboxFilename ?? _job.ResumePath)}";
+        CoverPathLabel.Text = $"Cover letter: {DisplayOrUnknown(_job.CoverLetterDropboxFilename ?? _job.CoverLetterPath)}";
         TrackingPathLabel.Text = $"Tracking: {DisplayOrUnknown(_job.ApplicationTrackingPath)}";
 
         ApplicationUrlLabel.Text = string.IsNullOrWhiteSpace(_job.ApplicationUrl)
@@ -139,29 +139,42 @@ public partial class JobDetailPage : ContentPage
 
         try
         {
-            if (!await _supabaseService.IsSignedInAsync())
+            var isSignedIn = await _supabaseService.IsSignedInAsync();
+            if (isSignedIn)
             {
-                await DisplayAlertAsync("Sign in required", "Sign in to your JobFlow Cloud account on the Integrations tab before opening application kits.", "OK");
+                StatusLabel.Text = $"Loading {title.ToLowerInvariant()} from JobFlow Cloud…";
+                var content = await _supabaseService.GetJobDocumentAsync(_job.JobId, documentKind);
+                if (!string.IsNullOrWhiteSpace(content))
+                {
+                    StatusLabel.Text = $"Opened {title.ToLowerInvariant()} from JobFlow Cloud.";
+                    await Navigation.PushAsync(new DocumentViewerPage(title, subtitle, "Supabase cloud record", content));
+                    return;
+                }
+            }
+            var dropboxUrl = kind switch
+            {
+                DocumentKind.Resume => _job.ResumeDropboxUrl,
+                DocumentKind.CoverLetter => _job.CoverLetterDropboxUrl,
+                _ => null
+            };
+            if (IsSafeDropboxUrl(dropboxUrl) && Uri.TryCreate(dropboxUrl, UriKind.Absolute, out var dropboxUri))
+            {
+                StatusLabel.Text = $"Opening {title.ToLowerInvariant()} in Dropbox…";
+                await Launcher.Default.OpenAsync(dropboxUri);
+                StatusLabel.Text = $"Opened {title.ToLowerInvariant()} in Dropbox.";
                 return;
             }
-
-            StatusLabel.Text = $"Loading {title.ToLowerInvariant()} from cloud…";
-            var content = await _supabaseService.GetJobDocumentAsync(_job.JobId, documentKind);
-            if (string.IsNullOrWhiteSpace(content))
+            if (!isSignedIn)
             {
-                await Navigation.PushAsync(new DocumentViewerPage(
-                    title, subtitle, "This cloud record does not contain that document yet."));
+                await DisplayAlertAsync("Document not linked", "No Dropbox document is linked yet. Sign in to JobFlow Cloud to check for a saved application kit.", "OK");
                 return;
             }
-
-            StatusLabel.Text = $"Opened {title.ToLowerInvariant()} from cloud.";
-            await Navigation.PushAsync(new DocumentViewerPage(title, subtitle, "Supabase cloud record", content));
+            await Navigation.PushAsync(new DocumentViewerPage(title, subtitle, "No saved document is linked for this job yet."));
         }
         catch (Exception ex)
         {
             StatusLabel.Text = $"Could not load {title.ToLowerInvariant()}.";
-            await Navigation.PushAsync(new DocumentViewerPage(
-                title, subtitle, $"Supabase document request failed: {ex.Message}"));
+            await Navigation.PushAsync(new DocumentViewerPage(title, subtitle, $"Document request failed: {ex.Message}"));
         }
     }
 
@@ -170,6 +183,12 @@ public partial class JobDetailPage : ContentPage
 
     private static bool IsSafeHttps(string? value) =>
         Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
+
+    private static bool IsSafeDropboxUrl(string? value) =>
+        Uri.TryCreate(value, UriKind.Absolute, out var uri)
+        && uri.Scheme == Uri.UriSchemeHttps
+        && (uri.Host.Equals("dropbox.com", StringComparison.OrdinalIgnoreCase)
+            || uri.Host.EndsWith(".dropbox.com", StringComparison.OrdinalIgnoreCase));
 
     private enum DocumentKind
     {
