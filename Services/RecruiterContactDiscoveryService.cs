@@ -103,9 +103,19 @@ public sealed class RecruiterContactDiscoveryService
     private static IReadOnlyList<string> ExtractEmails(string html)
     {
         var decoded = WebUtility.HtmlDecode(html);
-        decoded = Regex.Replace(decoded, @"(?is)<(script|style|noscript)[^>]*>.*?</\1>", " ");
+        decoded = Regex.Replace(decoded, @"(?is)<(script|style|noscript)[^>]*>.*?</\\1>", " ");
         decoded = Regex.Replace(decoded, @"(?s)<[^>]+>", " ");
+        var roleContext = new Regex(@"(?i)(recruit(?:er|ing|ment)?|talent|human\\s+resources|\\bHR\\b|career|hiring|jobs?)");
         return EmailPattern.Matches(decoded)
+            .Where(match =>
+            {
+                var start = Math.Max(0, match.Index - 140);
+                var length = Math.Min(decoded.Length - start, match.Length + 280);
+                var context = decoded.Substring(start, length);
+                var localPart = match.Value.Split('@')[0];
+                return roleContext.IsMatch(context)
+                    || Regex.IsMatch(localPart, @"(?i)(recruit|talent|career|hiring|jobs?|hr)");
+            })
             .Select(match => match.Value.Trim('.', ',', ';', ':', ')', ']', '}', '"', '\''))
             .Where(IsValidEmail)
             .Distinct(StringComparer.OrdinalIgnoreCase)
