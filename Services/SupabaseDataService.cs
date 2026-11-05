@@ -85,7 +85,7 @@ public sealed class SupabaseDataService
         SecureStorage.Default.Remove(EmailKey);
     }
 
-    public async Task<DailyFeed> LoadAllJobsAsync(CancellationToken cancellationToken = default)
+    public async Task<DailyFeed> LoadAllJobsAsync(CancellationToken cancellationToken = default, bool includeBlocked = false)
     {
         var token = await GetValidAccessTokenAsync() ?? throw new InvalidOperationException("Sign in with Supabase on the Integrations tab first.");
         var employerPreferences = await GetEmployersAsync(cancellationToken);
@@ -137,9 +137,9 @@ public sealed class SupabaseDataService
             throw new InvalidOperationException("Supabase returned rows, but none matched the app's required job fields (job ID, title, and employer). Check the shared feed metadata mapping.");
 
         await EnsureEmployersExistAsync(unique, cancellationToken);
-        var visibleJobs = unique
-            .Where(job => !blockedEmployers.Contains(NormalizeEmployerName(job.Company)))
-            .ToList();
+        var visibleJobs = includeBlocked
+            ? unique
+            : unique.Where(job => !blockedEmployers.Contains(NormalizeEmployerName(job.Company))).ToList();
 
         return new DailyFeed
         {
