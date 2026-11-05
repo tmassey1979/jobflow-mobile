@@ -17,6 +17,7 @@ public partial class ApplicationEmailPage : ContentPage
     {
         InitializeComponent();
         _job = job ?? throw new ArgumentNullException(nameof(job));
+        DraftButton.IsEnabled = false;
         RoleLabel.Text = $"{job.Title} · {job.Company}";
         SubjectEntry.Text = $"Application: {job.Title}";
         ContactStatusLabel.Text = "No recruiter/HR email confirmed yet. Search the job's public source pages.";
