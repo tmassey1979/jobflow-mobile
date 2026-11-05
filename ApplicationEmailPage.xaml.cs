@@ -105,6 +105,11 @@ public partial class ApplicationEmailPage : ContentPage
         }
 
         var options = contacts.Select(contact => $"{contact.Email} — {contact.VerificationStatus}").ToArray();
+        if (!chooseContact)
+        {
+            ContactStatusLabel.Text = $"{contacts.Count} public recruiting-related contact(s) already saved. Tap Find to select one.";
+            return;
+        }
         MainThread.BeginInvokeOnMainThread(async () =>
         {
             var selected = await DisplayActionSheetAsync("Public contacts found", "Cancel", null, options);
