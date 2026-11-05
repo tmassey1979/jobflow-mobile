@@ -141,12 +141,15 @@ static void DatabaseMigrationPreservesLegacyData()
     Assert(migrations.Count(item => item.Version == 1) == 1, "repeated initialization must not duplicate migration records");
     Assert(migrations.Count(item => item.Version == 2) == 1, "job-cache migration should be applied once");
     Assert(migrations.Count(item => item.Version == 3) == 1, "follow-up migration should be applied once");
+    Assert(migrations.Count(item => item.Version == 4) == 1, "recruiter contact migration should be applied once");
     Assert(database.Connection.Table<CachedJobRecord>().ToListAsync().GetAwaiter().GetResult() is not null,
         "migration should create the cached jobs table");
     Assert(database.Connection.Table<ApplicationRecord>().ToListAsync().GetAwaiter().GetResult() is not null,
         "migration should create the application table");
     Assert(database.Connection.Table<ApplicationFollowUpRecord>().ToListAsync().GetAwaiter().GetResult() is not null,
         "migration should create the application follow-up table");
+    Assert(database.Connection.Table<RecruiterContactRecord>().ToListAsync().GetAwaiter().GetResult() is not null,
+        "migration should create the public recruiter contact table");
 }
 
 static void NewerDatabaseSchemaIsRejected()
@@ -161,7 +164,7 @@ static void NewerDatabaseSchemaIsRejected()
     connection.CreateTableAsync<DatabaseMigrationRecord>().GetAwaiter().GetResult();
     connection.InsertAsync(new DatabaseMigrationRecord
     {
-        Version = 4,
+        Version = 5,
         AppliedAtUtc = DateTime.UtcNow,
         Description = "Simulated future schema"
     }).GetAwaiter().GetResult();
