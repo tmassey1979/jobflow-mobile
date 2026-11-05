@@ -38,6 +38,20 @@ public sealed class EmployerRecord
     public DateTimeOffset? UpdatedAt { get; set; }
 
     [JsonIgnore]
+    public List<JobFeedItem> Jobs { get; set; } = [];
+
+    [JsonIgnore]
+    public bool ListingsExpanded { get; set; }
+
+    [JsonIgnore]
+    public bool HasNoListings => Jobs.Count == 0;
+
+    [JsonIgnore]
+    public string ListingsToggleLabel => ListingsExpanded
+        ? $"Hide {Jobs.Count} saved listing(s)"
+        : $"Show {Jobs.Count} saved listing(s)";
+
+    [JsonIgnore]
     public string DecisionLabel => DoNotPursue ? "Blocked from future discovery" : $"Decision: {PursuitStatus.Replace('_', ' ')}";
 
     [JsonIgnore]
