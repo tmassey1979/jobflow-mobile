@@ -44,6 +44,18 @@ public partial class EmployersPage : ContentPage
         try
         {
             var employers = await _supabase.GetEmployersAsync();
+            var feed = await _supabase.LoadAllJobsAsync(includeBlocked: true);
+            foreach (var employer in employers)
+            {
+                var normalized = SupabaseDataService.NormalizeEmployerName(employer.Name);
+                employer.Jobs = feed.Jobs
+                    .Where(job => string.Equals(
+                        SupabaseDataService.NormalizeEmployerName(job.Company),
+                        normalized,
+                        StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(job => job.Title, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
             EmployersCollection.ItemsSource = employers;
             var blocked = employers.Count(e => e.DoNotPursue);
             StatusLabel.Text = $"{employers.Count} employers · {blocked} blocked";
@@ -57,6 +69,21 @@ public partial class EmployersPage : ContentPage
         {
             IsRefreshing = false;
         }
+    }
+
+    private void OnToggleListingsClicked(object sender, EventArgs e)
+    {
+        if (sender is not Button { BindingContext: EmployerRecord employer }) return;
+        employer.ListingsExpanded = !employer.ListingsExpanded;
+        var items = EmployersCollection.ItemsSource;
+        EmployersCollection.ItemsSource = null;
+        EmployersCollection.ItemsSource = items;
+    }
+
+    private async void OnJobDetailsClicked(object sender, EventArgs e)
+    {
+        if (sender is not Button { BindingContext: JobFeedItem job }) return;
+        await Navigation.PushAsync(new JobDetailPage(job));
     }
 
     private async void OnBlockActionClicked(object sender, EventArgs e)
