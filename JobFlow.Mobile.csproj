@@ -16,6 +16,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.110" />
     <PackageReference Include="sqlite-net-pcl" Version="1.11.285" />
+    <PackageReference Include="UglyToad.PdfPig" Version="0.1.9" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="tests/**/*.cs" />
