@@ -58,6 +58,11 @@ public partial class JobDetailPage : ContentPage
         OpenAppButton.IsEnabled = IsSafeHttps(_job.ApplicationUrl);
     }
 
+    private async void OnPrepareEmailClicked(object sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new ApplicationEmailPage(_job));
+    }
+
     private async void OnManageEmployerClicked(object sender, EventArgs e)
     {
         await Navigation.PushAsync(new EmployersPage());
