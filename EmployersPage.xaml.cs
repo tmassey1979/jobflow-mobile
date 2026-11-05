@@ -43,12 +43,25 @@ public partial class EmployersPage : ContentPage
         IsRefreshing = true;
         try
         {
+            DailyFeed? feed = null;
+            string? feedError = null;
+            try
+            {
+                // Include blocked employers here so their existing saved listings remain
+                // visible; blocking only excludes them from future discovery.
+                feed = await _supabase.LoadAllJobsAsync(includeBlocked: true);
+            }
+            catch (Exception ex)
+            {
+                // Keep the employer directory usable even when the job feed is unavailable.
+                feedError = ex.Message;
+            }
+
             var employers = await _supabase.GetEmployersAsync();
-            var feed = await _supabase.LoadAllJobsAsync(includeBlocked: true);
             foreach (var employer in employers)
             {
                 var normalized = SupabaseDataService.NormalizeEmployerName(employer.Name);
-                employer.Jobs = feed.Jobs
+                employer.Jobs = (feed?.Jobs ?? [])
                     .Where(job => string.Equals(
                         SupabaseDataService.NormalizeEmployerName(job.Company),
                         normalized,
@@ -58,7 +71,9 @@ public partial class EmployersPage : ContentPage
             }
             EmployersCollection.ItemsSource = employers;
             var blocked = employers.Count(e => e.DoNotPursue);
-            StatusLabel.Text = $"{employers.Count} employers · {blocked} blocked";
+            StatusLabel.Text = feedError is null
+                ? $"{employers.Count} employers · {blocked} blocked · {feed?.Jobs.Count ?? 0} saved listings"
+                : $"{employers.Count} employers · {blocked} blocked · listings unavailable";
         }
         catch (Exception ex)
         {
