@@ -9,7 +9,7 @@ namespace JobFlow.Mobile.Services;
 /// </summary>
 public sealed class LocalDatabaseService
 {
-    private const int CurrentSchemaVersion = 3;
+    private const int CurrentSchemaVersion = 4;
     private static readonly Lazy<LocalDatabaseService> SharedInstance =
         new(() => new LocalDatabaseService(GetDefaultDatabasePath()));
 
@@ -99,6 +99,21 @@ public sealed class LocalDatabaseService
                         Version = 3,
                         AppliedAtUtc = DateTime.UtcNow,
                         Description = "Ensure local application follow-up dates are available in the shared database."
+                    });
+                });
+            }
+
+            if (version < 4)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await _connection.RunInTransactionAsync(database =>
+                {
+                    database.CreateTable<RecruiterContactRecord>();
+                    database.Insert(new DatabaseMigrationRecord
+                    {
+                        Version = 4,
+                        AppliedAtUtc = DateTime.UtcNow,
+                        Description = "Add device-local recruiter contacts with public source and verification timestamps."
                     });
                 });
             }
