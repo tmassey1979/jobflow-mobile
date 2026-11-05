@@ -1,4 +1,3 @@
-using System.Text;
 using Microsoft.Maui.ApplicationModel.Communication;
 using JobFlow.Mobile.Models;
 using JobFlow.Mobile.Services;
@@ -8,10 +7,12 @@ namespace JobFlow.Mobile;
 public partial class ApplicationEmailPage : ContentPage
 {
     private readonly JobFeedItem _job;
-    private readonly SupabaseDataService _supabase = new();
     private readonly RecruiterContactDiscoveryService _contacts = new();
-    private string? _resumeText;
+    private readonly DropboxApplicationDocumentService _dropbox = new();
+    private string? _resumeFilePath;
+    private string? _resumeFileName;
     private RecruiterContactRecord? _selectedContact;
+    private bool _documentsLoading;
 
     public ApplicationEmailPage(JobFeedItem job)
     {
@@ -21,47 +22,98 @@ public partial class ApplicationEmailPage : ContentPage
         RoleLabel.Text = $"{job.Title} · {job.Company}";
         SubjectEntry.Text = $"Application: {job.Title}";
         ContactStatusLabel.Text = "No recruiter/HR email confirmed yet. Search the job's public source pages.";
-        ResumeStatusLabel.Text = "Loading your job-specific resume and cover letter…";
-        LoadDocumentsAsync();
+        ResumeStatusLabel.Text = "Connect Dropbox to load the matching resume and cover letter.";
         LoadContactsAsync();
+        LoadDocumentsIfConnectedAsync();
     }
 
-    private async void LoadDocumentsAsync()
+    private async void LoadDocumentsIfConnectedAsync()
     {
+        if (await _dropbox.IsConnectedAsync())
+            await LoadDocumentsAsync();
+    }
+
+    private async void OnConnectDropboxClicked(object sender, EventArgs e)
+    {
+        ConnectDropboxButton.IsEnabled = false;
         try
         {
-            if (!await _supabase.IsSignedInAsync())
+            var appKey = Preferences.Default.Get("jobflow.dropbox.app_key", string.Empty);
+            if (string.IsNullOrWhiteSpace(appKey))
             {
-                ResumeStatusLabel.Text = "Sign in to JobFlow Cloud to load the private job-specific application kit.";
-                DraftButton.IsEnabled = false;
-                return;
+                appKey = await DisplayPromptAsync("Dropbox app key",
+                    "Enter the App key from your Dropbox developer app. JobFlow uses read-only file access.",
+                    "Continue", "Cancel", keyboard: Keyboard.Text);
+                if (string.IsNullOrWhiteSpace(appKey)) return;
             }
 
-            _resumeText = await _supabase.GetJobDocumentAsync(_job.JobId, "resume");
-            var cover = await _supabase.GetJobDocumentAsync(_job.JobId, "cover");
-            if (string.IsNullOrWhiteSpace(_resumeText))
-            {
-                ResumeStatusLabel.Text = "No resume content is available in the private JobFlow record. Email draft is disabled so the wrong attachment is never sent.";
-                DraftButton.IsEnabled = false;
-                return;
-            }
+            ResumeStatusLabel.Text = "Opening Dropbox sign-in…";
+            await _dropbox.ConnectAsync(appKey);
+            await LoadDocumentsAsync();
+        }
+        catch (Exception ex)
+        {
+            ResumeStatusLabel.Text = $"Dropbox connection failed: {ex.Message}";
+            DraftButton.IsEnabled = false;
+        }
+        finally
+        {
+            ConnectDropboxButton.IsEnabled = true;
+        }
+    }
 
-            if (string.IsNullOrWhiteSpace(cover))
-            {
-                ResumeStatusLabel.Text = "Job-specific resume loaded; no cover letter found. Add the cover letter text before opening the email draft.";
-                DraftButton.IsEnabled = false;
-                return;
-            }
+    private async Task LoadDocumentsAsync()
+    {
+        if (_documentsLoading) return;
+        _documentsLoading = true;
+        DraftButton.IsEnabled = false;
+        try
+        {
+            ResumeStatusLabel.Text = "Downloading the job-specific documents from Dropbox…";
+            var resumePath = ResolveDropboxPath(_job.ResumeDropboxFilename, _job.JobId, "Resume");
+            var coverPath = ResolveDropboxPath(_job.CoverLetterDropboxFilename, _job.JobId, "Cover Letter");
 
-            CoverLetterEditor.Text = cover;
-            ResumeStatusLabel.Text = "Job-specific resume loaded and ready to attach.";
+            var resume = await _dropbox.GetApplicationDocumentAsync(resumePath,
+                $"{_job.JobId} - Resume.pdf");
+            if (string.IsNullOrWhiteSpace(resume.Text))
+                throw new InvalidOperationException("The matching Dropbox resume exported successfully, but its text could not be verified. Email draft remains disabled.");
+
+            var cover = await _dropbox.GetApplicationDocumentAsync(coverPath,
+                $"{_job.JobId} - Cover Letter.pdf");
+            if (string.IsNullOrWhiteSpace(cover.Text))
+                throw new InvalidOperationException("The matching Dropbox cover letter is empty or could not be read. Email draft remains disabled.");
+
+            _resumeFilePath = resume.LocalPath;
+            _resumeFileName = resume.FileName;
+            CoverLetterEditor.Text = cover.Text;
+            ResumeStatusLabel.Text = $"Dropbox documents ready. Resume attachment: {resume.FileName}";
+            DraftButton.Text = $"Review email with {Path.GetExtension(resume.FileName).TrimStart('.').ToUpperInvariant()} resume attached";
             DraftButton.IsEnabled = true;
         }
         catch (Exception ex)
         {
-            ResumeStatusLabel.Text = $"Could not load the private application kit: {ex.Message}";
+            _resumeFilePath = null;
+            _resumeFileName = null;
+            CoverLetterEditor.Text = string.Empty;
+            ResumeStatusLabel.Text = $"Could not load the matching Dropbox application kit: {ex.Message}";
             DraftButton.IsEnabled = false;
         }
+        finally
+        {
+            _documentsLoading = false;
+        }
+    }
+
+    private static string ResolveDropboxPath(string? configuredName, string jobId, string documentType)
+    {
+        var name = string.IsNullOrWhiteSpace(configuredName)
+            ? $"{jobId} - {documentType}.paper"
+            : configuredName.Trim();
+        if (name.StartsWith("/JobFlow/Applications/", StringComparison.OrdinalIgnoreCase))
+            return name;
+        if (name.Contains('/') || name.Contains('\\') || name.Contains("..", StringComparison.Ordinal))
+            throw new InvalidOperationException("The Dropbox document filename is not a safe file name.");
+        return $"/JobFlow/Applications/{name}";
     }
 
     private async void LoadContactsAsync()
@@ -133,31 +185,29 @@ public partial class ApplicationEmailPage : ContentPage
             await DisplayAlertAsync("Recipient required", "Enter a valid email address from a public source before continuing.", "OK");
             return;
         }
-        if (string.IsNullOrWhiteSpace(_resumeText) || string.IsNullOrWhiteSpace(CoverLetterEditor.Text))
+        if (string.IsNullOrWhiteSpace(_resumeFilePath) || !File.Exists(_resumeFilePath)
+            || string.IsNullOrWhiteSpace(CoverLetterEditor.Text))
         {
-            await DisplayAlertAsync("Application kit incomplete", "The correct job-specific resume and cover letter must both be loaded before preparing an email.", "OK");
+            await DisplayAlertAsync("Application kit incomplete", "The matching Dropbox resume file and cover letter must both be loaded before preparing an email.", "OK");
             return;
         }
 
         var approved = await DisplayAlertAsync("Review application email",
-            $"Open your email app with this recipient?\n\nTo: {recipient}\nJob: {_job.Title} at {_job.Company}\nAttachment: job-specific resume\n\nNothing will be sent by JobFlow.",
+            $"Open your email app with this recipient?\n\nTo: {recipient}\nJob: {_job.Title} at {_job.Company}\nAttachment: {_resumeFileName}\n\nNothing will be sent by JobFlow.",
             "Open draft", "Cancel");
         if (!approved) return;
 
         try
         {
-            var safeName = string.Concat(_job.Company.Select(ch => char.IsLetterOrDigit(ch) ? ch : '_'));
-            var filePath = Path.Combine(FileSystem.CacheDirectory, $"JobFlow_{safeName}_{DateTime.UtcNow:yyyyMMddHHmmss}_Resume.txt");
-            await File.WriteAllTextAsync(filePath, _resumeText, new UTF8Encoding(false));
             var message = new EmailMessage
             {
                 Subject = string.IsNullOrWhiteSpace(SubjectEntry.Text) ? $"Application: {_job.Title}" : SubjectEntry.Text.Trim(),
                 Body = CoverLetterEditor.Text.Trim(),
                 To = { recipient },
-                Attachments = { new EmailAttachment(filePath) }
+                Attachments = { new EmailAttachment(_resumeFilePath) }
             };
             await Email.Default.ComposeAsync(message);
-            ResumeStatusLabel.Text = "Email draft opened. JobFlow has not sent it; finish review and send from your email app.";
+            ResumeStatusLabel.Text = "Email draft opened with the actual Dropbox-exported resume file attached. JobFlow has not sent it.";
         }
         catch (FeatureNotSupportedException)
         {
