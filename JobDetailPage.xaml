@@ -79,6 +79,7 @@
                 <Button Grid.Column="0" x:Name="ResumeButton" Text="Resume" Clicked="OnResumeClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
                 <Button Grid.Column="1" x:Name="CoverButton" Text="Cover letter" Clicked="OnCoverClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
             </Grid>
+            <Button Text="Prepare application email" Clicked="OnPrepareEmailClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
             <Button Text="Manage employer decision" Clicked="OnManageEmployerClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
             <Button x:Name="TrackButton" Text="Track application" Clicked="OnTrackClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
             <Button x:Name="OpenAppButton" Text="Open application link" Clicked="OnOpenApplicationClicked" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="10" />
