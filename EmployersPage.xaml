@@ -35,6 +35,25 @@
                                     <Button Grid.Column="0" Text="{Binding BlockActionLabel}" Clicked="OnBlockActionClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="8" FontSize="12" />
                                     <Button Grid.Column="1" Text="Edit notes" Clicked="OnEditNotesClicked" BackgroundColor="#E9EDF4" TextColor="{StaticResource Ink}" CornerRadius="8" FontSize="12" />
                                 </Grid>
+                                <Button Text="{Binding ListingsToggleLabel}" Clicked="OnToggleListingsClicked" BackgroundColor="#F1F3F7" TextColor="{StaticResource Ink}" CornerRadius="8" FontSize="12" />
+                                <VerticalStackLayout IsVisible="{Binding ListingsExpanded}" Spacing="7">
+                                    <Label Text="Saved job listings" FontSize="13" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Jobs}" Spacing="7">
+                                        <BindableLayout.ItemTemplate>
+                                            <DataTemplate x:DataType="models:JobFeedItem">
+                                                <Border Stroke="#E3E8F0" StrokeShape="RoundRectangle 8" Padding="9" BackgroundColor="#F8FAFC">
+                                                    <VerticalStackLayout Spacing="4">
+                                                        <Label Text="{Binding Title}" FontSize="13" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+                                                        <Label Text="{Binding SalaryLabel}" FontSize="11" TextColor="{StaticResource MutedInk}" />
+                                                        <Label Text="{Binding RemoteScope}" FontSize="11" TextColor="{StaticResource MutedInk}" />
+                                                        <Button Text="Open job details, resume &amp; cover letter" Clicked="OnJobDetailsClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="7" FontSize="11" Padding="8,6" />
+                                                    </VerticalStackLayout>
+                                                </Border>
+                                            </DataTemplate>
+                                        </BindableLayout.ItemTemplate>
+                                    </VerticalStackLayout>
+                                    <Label Text="No saved listings for this employer." IsVisible="{Binding HasNoListings}" FontSize="11" TextColor="{StaticResource MutedInk}" />
+                                </VerticalStackLayout>
                             </VerticalStackLayout>
                         </Border>
                     </DataTemplate>
