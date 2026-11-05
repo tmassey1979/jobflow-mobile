@@ -103,9 +103,9 @@ public sealed class RecruiterContactDiscoveryService
     private static IReadOnlyList<string> ExtractEmails(string html)
     {
         var decoded = WebUtility.HtmlDecode(html);
-        decoded = Regex.Replace(decoded, @"(?is)<(script|style|noscript)[^>]*>.*?</\\1>", " ");
+        decoded = Regex.Replace(decoded, @"(?is)<(script|style|noscript)[^>]*>.*?</\1>", " ");
         decoded = Regex.Replace(decoded, @"(?s)<[^>]+>", " ");
-        var roleContext = new Regex(@"(?i)(recruit(?:er|ing|ment)?|talent|human\\s+resources|\\bHR\\b|career|hiring|jobs?)");
+        var roleContext = new Regex(@"(?i)(recruit(?:er|ing|ment)?|talent|human\s+resources|\bHR\b|career|hiring|jobs?)");
         return EmailPattern.Matches(decoded)
             .Where(match =>
             {
