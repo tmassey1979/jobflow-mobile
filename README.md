@@ -6,12 +6,14 @@ Private, Android-only JobFlow app built with .NET MAUI and C#.
 
 - **Jobs tab** — load the authenticated shared job-listing feed from Supabase, open HTTPS application links, and track jobs locally.
 - **Applications tab** — search, set stage, notes, and follow-up dates (device-local SQLite only).
-- **Application email preparation** — scan public job/application source pages for recruiting-related email addresses, retain each address with its source and check date, load the role-specific resume and cover letter from the user’s private JobFlow record, and open a reviewed email draft with the cover letter in the body and resume attached.
+- **Application email preparation** — scan public job/application source pages for published recruiting-related email addresses, then load the matching resume and cover letter directly from Dropbox. Dropbox Paper documents are exported to files on-device; the resume is attached as its actual exported PDF/DOCX file and the cover letter text is placed in the email body.
 - **Integrations tab** — create/sign in to a Supabase account for cloud feed access.
-- **Settings → Master resume** — import a `.txt`, `.md`, or `.docx` resume, review/edit it, load it from the cloud, and explicitly confirm replacement when saving. The master resume is stored in a dedicated per-user Supabase table protected by RLS.
+- **Settings → Master resume** — import a `.txt`, `.md`, or `.docx` resume, review/edit it, load it from the cloud, and explicitly confirm replacement when saving.
 - **Offline** — last successful feed is cached locally; app still opens without network.
 
-No applications are submitted. The Supabase client uses a publishable key plus the user session and relies on row-level security; never add a service-role key to the Android app. The scheduled feed writer must be configured separately before the cloud feed will contain jobs. Application tracking remains device-local in this version.
+JobFlow uses Dropbox OAuth authorization-code with PKCE and requests only `files.content.read`. Dropbox access and refresh tokens are stored in Android SecureStorage. The Dropbox developer app must have the `files.content.read` scope and this redirect URI registered exactly: `com.tmassey1979.jobflowmobile://oauth2redirect`. On the first application-email attempt, tap **Connect Dropbox** and enter the Dropbox app key. The Dropbox app must use Full Dropbox access (not App Folder) so it can read `/JobFlow/Applications`.
+
+No applications are submitted. JobFlow opens the native email composer for review; it never sends automatically. The Supabase client uses a publishable key plus the user session and relies on row-level security; never add a service-role key to the Android app. Application tracking remains device-local in this version.
 
 ## Install the latest release
 
@@ -19,48 +21,16 @@ No applications are submitted. The Supabase client uses a publishable key plus t
 2. Download the single file named `JobFlow-Mobile-vX.Y.Z.apk`.
 3. Open that APK on the Android phone and allow your file manager to install unknown apps if prompted.
 
-Each successful push to `main` runs contract and integration tests, builds the Android APK, increments the patch version, and publishes a GitHub Release with the versioned APK. Pull requests and manual runs build test APKs but do not publish releases. The build uploads only the signed APK; the unsigned package is removed to prevent accidentally installing the wrong file.
-
-## One-time release signing setup
-
-A stable signing key is required so Android will accept future APKs as updates to the previously installed release. Do not commit the keystore or passwords to the repository.
-
-Create a release keystore on a trusted computer with a JDK installed:
-
-```powershell
-keytool -genkeypair -v -keystore jobflow-release.keystore -alias jobflow -keyalg RSA -keysize 2048 -validity 10000
-$bytes = [System.IO.File]::ReadAllBytes("jobflow-release.keystore")
-[Convert]::ToBase64String($bytes) | Set-Clipboard
-```
-
-In the private repository, open **Settings → Secrets and variables → Actions → New repository secret** and add:
-
-- `ANDROID_SIGNING_KEYSTORE_BASE64` — the Base64 value copied above
-- `ANDROID_KEYSTORE_PASSWORD` — the keystore password chosen in keytool
-- `ANDROID_KEY_ALIAS` — `jobflow`
-- `ANDROID_KEY_PASSWORD` — the key password chosen in keytool
-
-Keep a secure backup of the keystore and passwords. GitHub Actions will use these secrets for signed releases. Until these are configured, CI still builds a signed test APK artifact, but it deliberately blocks publishing a release so updates cannot silently ship with an unstable signing identity.
-
-If you previously installed an APK signed with the temporary CI debug key, uninstall that test build before installing the first stable-signed release. Uninstalling removes local app data.
+Each successful push to `main` runs contract and integration tests, builds the Android APK, increments the patch version, and publishes a GitHub Release with the versioned APK. Pull requests and manual runs build test APKs but do not publish releases.
 
 ## First-run checklist
 
 1. Open the app → **Integrations** → create or sign in to your JobFlow Cloud account.
 2. Open **Jobs** and tap **Sync all**.
-3. Confirm cloud jobs appear on the Jobs tab once the scheduled feed writer is connected.
-4. Use **Track** on a job card, then open the Applications tab.
-
-The app reads shared job-listing metadata from Supabase for authenticated accounts. The master resume is stored in `public.master_resumes`, a dedicated per-user table protected by row-level security. Tailored resume/cover-letter text remains in the separate private `job_records` table and is never written to the shared feed or this source repository. The legacy GitHub account integration has been removed. Recruiter contact discovery and email draft preparation are available from a job’s detail page. Discovered contacts are saved locally with the source URL and verification timestamp; addresses are suggested only when recruiting-related context appears on a fetched public HTTPS source page. JobFlow opens the device email composer with the cover letter in the body and the job-specific resume attached as a text document. The user reviews and sends from their email app; JobFlow never sends automatically. Contacts and application-tracker changes remain device-local.
-
-## Graphics
-
-- Launcher icon: adaptive charcoal background plus blue Signal Mark foreground.
-- Splash screen: centered Signal Mark on charcoal.
-- In-app branding: the Signal Mark is shown on Jobs, Applications, and Integrations.
-- Empty state: the original empty-jobs illustration is reused for Jobs and Applications.
-- Runtime graphics are source-controlled SVGs converted by MAUI's asset pipeline; no remote graphics or raster intermediates are required.
+3. Use **Track** on a job card, then open the Applications tab.
+4. Open an application’s email-preparation screen, tap **Connect Dropbox**, and complete Dropbox sign-in.
+5. Review the recipient, cover-letter body, and actual resume file attachment in your email app before sending.
 
 ## CI
 
-GitHub Actions runs the feed contract tests and offline database/application workflow tests, builds the Android target, and uploads a single installable APK artifact. Main-branch releases include the same versioned APK as a GitHub Release asset.
+GitHub Actions runs the feed contract tests and offline database/application workflow tests, builds the Android target, and uploads an installable APK artifact.
