@@ -107,6 +107,18 @@ public sealed class JobFeedItem
     [JsonPropertyName("cover_letter_path")]
     public string? CoverLetterPath { get; set; }
 
+    [JsonPropertyName("resume_dropbox_url")]
+    public string? ResumeDropboxUrl { get; set; }
+
+    [JsonPropertyName("resume_dropbox_filename")]
+    public string? ResumeDropboxFilename { get; set; }
+
+    [JsonPropertyName("cover_letter_dropbox_url")]
+    public string? CoverLetterDropboxUrl { get; set; }
+
+    [JsonPropertyName("cover_letter_dropbox_filename")]
+    public string? CoverLetterDropboxFilename { get; set; }
+
     [JsonPropertyName("application_tracking_path")]
     public string? ApplicationTrackingPath { get; set; }
 
