@@ -6,6 +6,7 @@ Private, Android-only JobFlow app built with .NET MAUI and C#.
 
 - **Jobs tab** — load the authenticated shared job-listing feed from Supabase, open HTTPS application links, and track jobs locally.
 - **Applications tab** — search, set stage, notes, and follow-up dates (device-local SQLite only).
+- **Application email preparation** — scan public job/application source pages for recruiting-related email addresses, retain each address with its source and check date, load the role-specific resume and cover letter from the user’s private JobFlow record, and open a reviewed email draft with the cover letter in the body and resume attached.
 - **Integrations tab** — create/sign in to a Supabase account for cloud feed access.
 - **Settings → Master resume** — import a `.txt`, `.md`, or `.docx` resume, review/edit it, load it from the cloud, and explicitly confirm replacement when saving. The master resume is stored in a dedicated per-user Supabase table protected by RLS.
 - **Offline** — last successful feed is cached locally; app still opens without network.
@@ -50,7 +51,7 @@ If you previously installed an APK signed with the temporary CI debug key, unins
 3. Confirm cloud jobs appear on the Jobs tab once the scheduled feed writer is connected.
 4. Use **Track** on a job card, then open the Applications tab.
 
-The app reads shared job-listing metadata from Supabase for authenticated accounts. The master resume is stored in `public.master_resumes`, a dedicated per-user table protected by row-level security. Tailored resume/cover-letter text remains in the separate private `job_records` table and is never written to the shared feed or this source repository. The legacy GitHub account integration has been removed. Recruiter outreach and form submission are not implemented. Application-tracker changes sync to the signed-in user's private Supabase records when cloud access is available; the app keeps the local SQLite copy for offline use.
+The app reads shared job-listing metadata from Supabase for authenticated accounts. The master resume is stored in `public.master_resumes`, a dedicated per-user table protected by row-level security. Tailored resume/cover-letter text remains in the separate private `job_records` table and is never written to the shared feed or this source repository. The legacy GitHub account integration has been removed. Recruiter contact discovery and email draft preparation are available from a job’s detail page. Discovered contacts are saved locally with the source URL and verification timestamp; addresses are suggested only when recruiting-related context appears on a fetched public HTTPS source page. JobFlow opens the device email composer with the cover letter in the body and the job-specific resume attached as a text document. The user reviews and sends from their email app; JobFlow never sends automatically. Contacts and application-tracker changes remain device-local.
 
 ## Graphics
 
