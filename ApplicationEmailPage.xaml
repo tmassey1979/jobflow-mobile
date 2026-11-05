@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="JobFlow.Mobile.ApplicationEmailPage"
+             Title="Prepare application email"
+             BackgroundColor="{StaticResource PageBackground}">
+    <ScrollView>
+        <VerticalStackLayout Padding="18" Spacing="12">
+            <Label x:Name="RoleLabel" FontSize="20" FontAttributes="Bold" TextColor="{StaticResource Ink}" />
+            <Label x:Name="ContactStatusLabel" FontSize="12" TextColor="{StaticResource MutedInk}" />
+            <Button x:Name="FindContactButton" Text="Find public recruiter / HR email" Clicked="OnFindContactClicked" BackgroundColor="#E9F0FF" TextColor="{StaticResource Accent}" CornerRadius="10" />
+            <Label Text="Recipient email" FontAttributes="Bold" FontSize="13" TextColor="{StaticResource Ink}" />
+            <Entry x:Name="RecipientEntry" Keyboard="Email" Placeholder="Only use an address published by a source" />
+            <Label x:Name="SourceLabel" FontSize="11" TextColor="{StaticResource MutedInk}" LineBreakMode="WordWrap" />
+            <Label Text="Subject" FontAttributes="Bold" FontSize="13" TextColor="{StaticResource Ink}" />
+            <Entry x:Name="SubjectEntry" />
+            <Label Text="Cover letter (email body)" FontAttributes="Bold" FontSize="13" TextColor="{StaticResource Ink}" />
+            <Editor x:Name="CoverLetterEditor" AutoSize="TextChanges" MinimumHeightRequest="240" />
+            <Label x:Name="ResumeStatusLabel" FontSize="12" TextColor="{StaticResource MutedInk}" />
+            <Button x:Name="DraftButton" Text="Review email with resume attached" Clicked="OnDraftClicked" BackgroundColor="{StaticResource Accent}" TextColor="White" CornerRadius="10" />
+            <Label Text="JobFlow opens your email app with a draft. It does not send anything. Review the recipient, message, and attachment there, then tap Send yourself." FontSize="11" TextColor="{StaticResource MutedInk}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
